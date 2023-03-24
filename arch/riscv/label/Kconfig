@@ -1,0 +1,5 @@
+config CGROUP_DSID
+	tristate "label support within cgroup"
+	default y	
+	help
+	this is a label task struct static module

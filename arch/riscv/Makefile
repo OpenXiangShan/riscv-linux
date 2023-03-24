@@ -97,6 +97,8 @@ core-y += arch/riscv/
 libs-y += arch/riscv/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
+core-$(CONFIG_CGROUP_DSID) += arch/riscv/label/
+
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/riscv/kernel/vdso $@

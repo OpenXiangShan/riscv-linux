@@ -436,3 +436,5 @@ source "kernel/power/Kconfig"
 endmenu
 
 source "drivers/firmware/Kconfig"
+
+source "arch/riscv/label/Kconfig"

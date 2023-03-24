@@ -2519,6 +2519,9 @@ pid_t kernel_clone(struct kernel_clone_args *args)
 		get_task_struct(p);
 	}
 
+#ifdef CONFIG_CGROUP_DSID
+    p->dsid = p->parent->dsid;
+#endif
 	wake_up_new_task(p);
 
 	/* forking complete and child started to run, tell ptracer */

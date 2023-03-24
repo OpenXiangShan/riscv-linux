@@ -57,6 +57,10 @@ SUBSYS(hugetlb)
 SUBSYS(pids)
 #endif
 
+#if IS_ENABLED(CONFIG_CGROUP_DSID)
+SUBSYS(dsid)
+#endif
+
 #if IS_ENABLED(CONFIG_CGROUP_RDMA)
 SUBSYS(rdma)
 #endif

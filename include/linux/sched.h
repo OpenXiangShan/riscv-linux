@@ -649,6 +649,11 @@ struct task_struct {
 	 */
 	struct thread_info		thread_info;
 #endif
+
+#ifdef CONFIG_CGROUP_DSID
+    unsigned int dsid;
+#endif
+
 	/* -1 unrunnable, 0 runnable, >0 stopped: */
 	volatile long			state;
 
