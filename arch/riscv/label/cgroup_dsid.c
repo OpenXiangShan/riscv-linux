@@ -132,6 +132,15 @@ enum {
 
 	/* Access hartnum with current dsid */
 	CP_REG_HARTNUM = 0x6,
+
+	/* Access tokenbucket freq size inc with current dsid */
+	CP_REG_BUCKET_FREQ = 0x7,
+	CP_REG_BUCKET_SIZE = 0x8,
+	CP_REG_BUCKET_INC = 0x9,
+
+	/* Access traffic (l2 to l3 acquire size >> 6) with current dsid */
+	CP_REG_TRAFFIC = 0xa,
+
 };
 
 const char *cp_reg_name[] = {
@@ -156,6 +165,13 @@ const char *cp_reg_name[] = {
 	/* Access hartnum with current dsid */
 	[CP_REG_HARTNUM - CP_REG_DSID_SEL] = "hartnum",
 
+	/* Access tokenbucket freq size inc with current dsid */
+	[CP_REG_BUCKET_FREQ - CP_REG_DSID_SEL] = "bucket_freq",
+	[CP_REG_BUCKET_SIZE - CP_REG_DSID_SEL] = "bucket_size",
+	[CP_REG_BUCKET_INC - CP_REG_DSID_SEL] = "bucket_inc",
+
+	/* Access traffic (l2 to l3 acquire size >> 6) with current dsid */
+	[CP_REG_TRAFFIC - CP_REG_DSID_SEL] = "traffic",
 };
 
 #define NR(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -181,7 +197,7 @@ static ssize_t dsid_cp_write(struct kernfs_open_file *of, char *buf, size_t nbyt
 		}
     }
 	*val='\0';
-	err	= kstrtou32(++val, 16, &num);
+	err	= kstrtou64(++val, 16, &num);
 	if (err < 0) {
 		return -EINVAL;
     }
@@ -234,10 +250,10 @@ static ssize_t dsid_core_cp_write(struct kernfs_open_file *of, char *buf, size_t
 		}
     }
 	*(id_val++)='\0';
-	if (kstrtou32(val, 16, &num) < 0) {
+	if (kstrtou64(val, 16, &num) < 0) {
 		return -EINVAL;
     }
-	if (kstrtou32(id_val, 16, &id) < 0) {
+	if (kstrtou64(id_val, 16, &id) < 0) {
 		return -EINVAL;
     }
 
