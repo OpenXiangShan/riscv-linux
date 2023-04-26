@@ -621,6 +621,10 @@ struct sdhci_host {
 
 	u64			data_timeout;
 
+	/* req size and seg count*/
+	u32 max_req_size;
+	u32 max_segs;
+
 	unsigned long private[] ____cacheline_aligned;
 };
 

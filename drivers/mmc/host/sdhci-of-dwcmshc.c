@@ -356,10 +356,21 @@ static const struct sdhci_ops sdhci_dwcmshc_rk35xx_ops = {
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 };
 
+#define USE_ADMA
 static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
 	.ops = &sdhci_dwcmshc_ops,
+#ifdef USE_ADMA
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+#else
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+		  SDHCI_QUIRK_32BIT_DMA_ADDR |
+		  SDHCI_QUIRK_32BIT_DMA_SIZE |
+		  SDHCI_QUIRK_FORCE_DMA |
+		  SDHCI_QUIRK_BROKEN_ADMA,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   SDHCI_QUIRK2_BROKEN_64_BIT_DMA,
+#endif
 };
 
 #ifdef CONFIG_ACPI
@@ -472,6 +483,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	const struct sdhci_pltfm_data *pltfm_data;
 	int err;
 	u32 extra;
+	u32 max_req_size;
+	u32 max_segs;
 
 	pltfm_data = device_get_match_data(&pdev->dev);
 	if (!pltfm_data) {
@@ -483,6 +496,21 @@ static int dwcmshc_probe(struct platform_device *pdev)
 				sizeof(struct dwcmshc_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
+
+	//gyx add in 2023/4/26, support to set max_req_size and max_segs in dts
+	if (!of_property_read_u32(pdev->dev.of_node, "max_req_size", &max_req_size))
+		host->max_req_size = max_req_size;
+	else
+		host->max_req_size = 524288;
+
+#ifdef USE_ADMA //max_segs can only be 1 in SDMA mode
+	if(!of_property_read_u32(pdev->dev.of_node, "max_segs", &max_segs))
+		host->max_segs = max_segs;
+	else
+		host->max_segs = 128;
+#else
+	host->max_segs = 1;
+#endif
 
 	/*
 	 * extra adma table cnt for cross 128M boundary handling.
