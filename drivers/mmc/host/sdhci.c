@@ -4692,14 +4692,14 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 * size (512KiB). Note some tuning modes impose a 4MiB limit, but this
 	 * is less anyway.
 	 */
-	mmc->max_req_size = 524288;
+	mmc->max_req_size = host->max_req_size;
 
 	/*
 	 * Maximum number of segments. Depends on if the hardware
 	 * can do scatter/gather or not.
 	 */
 	if (host->flags & SDHCI_USE_ADMA) {
-		mmc->max_segs = SDHCI_MAX_SEGS;
+		mmc->max_segs = host->max_segs;
 	} else if (host->flags & SDHCI_USE_SDMA) {
 		mmc->max_segs = 1;
 		mmc->max_req_size = min_t(size_t, mmc->max_req_size,
@@ -4747,7 +4747,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 */
 	mmc->max_blk_count = (host->quirks & SDHCI_QUIRK_NO_MULTIBLOCK) ? 1 : 65535;
 
-	if (mmc->max_segs == 1)
+	if (mmc->max_segs == 1 && (host->flags & SDHCI_USE_SDMA))
 		/* This may alter mmc->*_blk_* parameters */
 		sdhci_allocate_bounce_buffer(host);
 
