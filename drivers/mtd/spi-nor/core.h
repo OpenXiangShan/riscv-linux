@@ -343,7 +343,7 @@ struct flash_info {
 		.id_len = 6,						\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
-		.page_size = 256,					\
+		.page_size = 4096,					\
 		.flags = (_flags),
 
 #define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_width, _flags)	\

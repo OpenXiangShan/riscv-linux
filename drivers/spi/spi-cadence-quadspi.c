@@ -234,6 +234,9 @@ struct cqspi_driver_platdata {
 
 #define CQSPI_IRQ_STATUS_MASK		0x1FFFF
 
+static int cqspi_set_protocol(struct cqspi_flash_pdata *f_pdata,
+			      const struct spi_mem_op *op);
+
 static int cqspi_wait_for_bit(void __iomem *reg, const u32 mask, bool clr)
 {
 	u32 val;
@@ -356,7 +359,7 @@ static int cqspi_command_read(struct cqspi_flash_pdata *f_pdata,
 	unsigned int rdreg;
 	unsigned int reg;
 	size_t read_len;
-	int status;
+	int status, ret;
 
 	if (!n_rx || n_rx > CQSPI_STIG_DATA_LEN_MAX || !rxbuf) {
 		dev_err(&cqspi->pdev->dev,
@@ -365,6 +368,9 @@ static int cqspi_command_read(struct cqspi_flash_pdata *f_pdata,
 		return -EINVAL;
 	}
 
+	ret = cqspi_set_protocol(f_pdata, op);
+	if (ret)
+		return ret;
 	reg = opcode << CQSPI_REG_CMDCTRL_OPCODE_LSB;
 
 	rdreg = cqspi_calc_rdreg(f_pdata);
@@ -459,7 +465,7 @@ static int cqspi_read_setup(struct cqspi_flash_pdata *f_pdata,
 	reg |= cqspi_calc_rdreg(f_pdata);
 
 	/* Setup dummy clock cycles */
-	dummy_clk = op->dummy.nbytes * 8;
+	dummy_clk = op->dummy.nbytes * 10;
 	if (dummy_clk > CQSPI_DUMMY_CLKS_MAX)
 		return -EOPNOTSUPP;
 
@@ -760,7 +766,7 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 	u32 reg, div;
 
 	/* Recalculate the baudrate divisor based on QSPI specification. */
-	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) - 1;
+	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) + 1;
 
 	reg = readl(reg_base + CQSPI_REG_CONFIG);
 	reg &= ~(CQSPI_REG_CONFIG_BAUD_MASK << CQSPI_REG_CONFIG_BAUD_LSB);
@@ -838,9 +844,9 @@ static void cqspi_configure(struct cqspi_flash_pdata *f_pdata,
 static int cqspi_set_protocol(struct cqspi_flash_pdata *f_pdata,
 			      const struct spi_mem_op *op)
 {
-	f_pdata->inst_width = CQSPI_INST_TYPE_SINGLE;
-	f_pdata->addr_width = CQSPI_INST_TYPE_SINGLE;
-	f_pdata->data_width = CQSPI_INST_TYPE_SINGLE;
+	f_pdata->inst_width = CQSPI_INST_TYPE_QUAD;
+	f_pdata->addr_width = CQSPI_INST_TYPE_QUAD;
+	f_pdata->data_width = CQSPI_INST_TYPE_QUAD;
 
 	if (op->data.dir == SPI_MEM_DATA_IN) {
 		switch (op->data.buswidth) {
@@ -1108,7 +1114,7 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 
 	cqspi_controller_enable(cqspi, 1);
 }
-
+/*
 static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 {
 	dma_cap_mask_t mask;
@@ -1126,7 +1132,7 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 
 	return 0;
 }
-
+*/
 static const char *cqspi_get_name(struct spi_mem *mem)
 {
 	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
@@ -1287,7 +1293,7 @@ static int cqspi_probe(struct platform_device *pdev)
 						cqspi->master_ref_clk_hz);
 		if (ddata->hwcaps_mask & CQSPI_SUPPORTS_OCTAL)
 			master->mode_bits |= SPI_RX_OCTAL;
-		if (!(ddata->quirks & CQSPI_DISABLE_DAC_MODE))
+		if (ddata->quirks & CQSPI_DISABLE_DAC_MODE)
 			cqspi->use_direct_mode = true;
 	}
 
@@ -1308,13 +1314,13 @@ static int cqspi_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to setup flash parameters %d\n", ret);
 		goto probe_setup_failed;
 	}
-
+/*
 	if (cqspi->use_direct_mode) {
 		ret = cqspi_request_mmap_dma(cqspi);
 		if (ret == -EPROBE_DEFER)
 			goto probe_setup_failed;
 	}
-
+*/
 	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI ctlr %d\n", ret);
