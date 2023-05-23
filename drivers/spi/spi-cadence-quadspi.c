@@ -377,7 +377,7 @@ static unsigned int cqspi_calc_dummy(const struct spi_mem_op *op)
 	if (!op->dummy.nbytes)
 		return 0;
 
-	dummy_clk = op->dummy.nbytes * (8 / op->dummy.buswidth);
+	dummy_clk = op->dummy.nbytes * (10 / op->dummy.buswidth);
 	if (op->cmd.dtr)
 		dummy_clk /= 2;
 
@@ -1185,7 +1185,7 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 	u32 reg, div;
 
 	/* Recalculate the baudrate divisor based on QSPI specification. */
-	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) - 1;
+	div = DIV_ROUND_UP(ref_clk_hz, 2 * cqspi->sclk) + 1;
 
 	/* Maximum baud divisor */
 	if (div > CQSPI_REG_CONFIG_BAUD_MASK) {

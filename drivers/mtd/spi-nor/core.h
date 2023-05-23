@@ -558,7 +558,7 @@ struct flash_info {
 #define SPI_NOR_GEOMETRY(_sector_size, _n_sectors, _n_banks)		\
 	.sector_size = (_sector_size),					\
 	.n_sectors = (_n_sectors),					\
-	.page_size = 256,						\
+	.page_size = 4096,						\
 	.n_banks = (_n_banks)
 
 /* Used when the "_ext_id" is two bytes at most */
