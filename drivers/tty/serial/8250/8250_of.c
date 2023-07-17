@@ -28,7 +28,7 @@ struct of_serial_info {
 /*
  * Fill a struct uart_port for a given device node
  */
-static int of_platform_serial_setup(struct platform_device *ofdev,
+static int platform_serial_setup(struct platform_device *ofdev,
 			int type, struct uart_8250_port *up,
 			struct of_serial_info *info)
 {
@@ -43,7 +43,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	pm_runtime_enable(&ofdev->dev);
 	pm_runtime_get_sync(&ofdev->dev);
 
-	if (of_property_read_u32(np, "clock-frequency", &clk)) {
+	if (device_property_read_u32(&ofdev->dev, "clock-frequency", &clk)) {
 
 		/* Get clk rate through clk driver if present */
 		info->clk = devm_clk_get(&ofdev->dev, NULL);
@@ -62,14 +62,14 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		clk = clk_get_rate(info->clk);
 	}
 	/* If current-speed was set, then try not to change it. */
-	if (of_property_read_u32(np, "current-speed", &spd) == 0)
+	if (device_property_read_u32(&ofdev->dev, "current-speed", &spd) == 0)
 		port->custom_divisor = clk / (16 * spd);
 
-	ret = of_address_to_resource(np, 0, &resource);
-	if (ret) {
+	if(!platform_get_mem_or_io(ofdev, 0)) {
 		dev_warn(&ofdev->dev, "invalid address\n");
 		goto err_unprepare;
 	}
+	memcpy(&resource, platform_get_mem_or_io(ofdev, 0), sizeof(resource));
 
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_FIXED_PORT |
 				  UPF_FIXED_TYPE;
@@ -83,7 +83,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->mapsize = resource_size(&resource);
 
 		/* Check for shifted address mapping */
-		if (of_property_read_u32(np, "reg-offset", &prop) == 0) {
+		if (device_property_read_u32(&ofdev->dev, "reg-offset", &prop) == 0) {
 			if (prop >= port->mapsize) {
 				dev_warn(&ofdev->dev, "reg-offset %u exceeds region size %pa\n",
 					 prop, &port->mapsize);
@@ -96,7 +96,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		}
 
 		port->iotype = UPIO_MEM;
-		if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+		if (device_property_read_u32(&ofdev->dev, "reg-io-width", &prop) == 0) {
 			switch (prop) {
 			case 1:
 				port->iotype = UPIO_MEM;
@@ -105,7 +105,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 				port->iotype = UPIO_MEM16;
 				break;
 			case 4:
-				port->iotype = of_device_is_big_endian(np) ?
+				port->iotype = device_property_is_big_endian(&ofdev->dev) ?
 					       UPIO_MEM32BE : UPIO_MEM32;
 				break;
 			default:
@@ -119,15 +119,15 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	}
 
 	/* Compatibility with the deprecated pxa driver and 8250_pxa drivers. */
-	if (of_device_is_compatible(np, "mrvl,mmp-uart"))
+	if (device_property_is_compatible(&ofdev->dev, "mrvl,mmp-uart"))
 		port->regshift = 2;
 
 	/* Check for registers offset within the devices address range */
-	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
+	if (device_property_read_u32(&ofdev->dev, "reg-shift", &prop) == 0)
 		port->regshift = prop;
 
 	/* Check for fifo size */
-	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
+	if (device_property_read_u32(&ofdev->dev, "fifo-size", &prop) == 0)
 		port->fifosize = prop;
 
 	/* Check for a fixed line number */
@@ -135,7 +135,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (ret >= 0)
 		port->line = ret;
 
-	irq = of_irq_get(np, 0);
+	irq = platform_get_irq(ofdev, 0);
 	if (irq < 0) {
 		if (irq == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
@@ -160,7 +160,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	port->type = type;
 	port->uartclk = clk;
 
-	if (of_property_read_bool(np, "no-loopback-test"))
+	if (device_property_read_bool(&ofdev->dev, "no-loopback-test"))
 		port->flags |= UPF_SKIP_TEST;
 
 	port->dev = &ofdev->dev;
@@ -176,8 +176,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	}
 
 	if (IS_ENABLED(CONFIG_SERIAL_8250_FSL) &&
-	    (of_device_is_compatible(np, "fsl,ns16550") ||
-	     of_device_is_compatible(np, "fsl,16550-FIFO64"))) {
+	    (device_property_is_compatible(&ofdev->dev, "fsl,ns16550") ||
+	     device_property_is_compatible(&ofdev->dev, "fsl,16550-FIFO64"))) {
 		port->handle_irq = fsl8250_handle_irq;
 		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 	}
@@ -203,14 +203,14 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_SERIAL_8250_BCM7271) &&
-	    of_device_is_compatible(ofdev->dev.of_node, "brcm,bcm7271-uart"))
+	    device_property_is_compatible(&ofdev->dev, "brcm,bcm7271-uart"))
 		return -ENODEV;
 
-	port_type = (unsigned long)of_device_get_match_data(&ofdev->dev);
+	port_type = (unsigned long)device_get_match_data(&ofdev->dev);
 	if (port_type == PORT_UNKNOWN)
 		return -EINVAL;
 
-	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
+	if (device_property_read_bool(&ofdev->dev, "used-by-rtas"))
 		return -EBUSY;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -218,7 +218,7 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	memset(&port8250, 0, sizeof(port8250));
-	ret = of_platform_serial_setup(ofdev, port_type, &port8250, info);
+	ret = platform_serial_setup(ofdev, port_type, &port8250, info);
 	if (ret)
 		goto err_free;
 
@@ -226,15 +226,15 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		port8250.capabilities = UART_CAP_FIFO;
 
 	/* Check for TX FIFO threshold & set tx_loadsz */
-	if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
+	if ((device_property_read_u32(&ofdev->dev, "tx-threshold",
 				  &tx_threshold) == 0) &&
 	    (tx_threshold < port8250.port.fifosize))
 		port8250.tx_loadsz = port8250.port.fifosize - tx_threshold;
 
-	if (of_property_read_bool(ofdev->dev.of_node, "auto-flow-control"))
+	if (device_property_read_bool(&ofdev->dev, "auto-flow-control"))
 		port8250.capabilities |= UART_CAP_AFE;
 
-	if (of_property_read_u32(ofdev->dev.of_node,
+	if (device_property_read_u32(&ofdev->dev,
 			"overrun-throttle-ms",
 			&port8250.overrun_backoff_time_ms) != 0)
 		port8250.overrun_backoff_time_ms = 0;
