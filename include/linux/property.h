@@ -80,6 +80,10 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 
 bool fwnode_device_is_available(const struct fwnode_handle *fwnode);
 
+bool device_property_is_compatible(struct device *dev, const char *compat);
+
+bool device_property_is_big_endian(struct device *dev);
+
 static inline
 bool fwnode_device_is_compatible(const struct fwnode_handle *fwnode, const char *compat)
 {

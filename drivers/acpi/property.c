@@ -1584,6 +1584,16 @@ static int acpi_fwnode_irq_get(const struct fwnode_handle *fwnode,
 	return res.start;
 }
 
+static bool acpi_fwnode_device_is_big_endian(const struct fwnode_handle *fwnode)
+{
+	if (acpi_fwnode_property_present(fwnode, "big-endian"))
+		return true;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
+	    acpi_fwnode_property_present(fwnode, "native-endian"))
+		return true;
+	return false;
+}
+
 #define DECLARE_ACPI_FWNODE_OPS(ops) \
 	const struct fwnode_operations ops = {				\
 		.device_is_available = acpi_fwnode_device_is_available, \
@@ -1609,6 +1619,7 @@ static int acpi_fwnode_irq_get(const struct fwnode_handle *fwnode,
 		.graph_get_port_parent = acpi_fwnode_get_parent,	\
 		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
 		.irq_get = acpi_fwnode_irq_get,				\
+		.device_is_big_endian = acpi_fwnode_device_is_big_endian, \
 	};								\
 	EXPORT_SYMBOL_GPL(ops)
 

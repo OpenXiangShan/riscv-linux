@@ -249,6 +249,35 @@ int device_property_match_string(struct device *dev, const char *propname,
 }
 EXPORT_SYMBOL_GPL(device_property_match_string);
 
+/**
+ * device_property_is_big_endian - check if a device has BE registers
+ * @dev: Device to get the property of
+ *
+ *  Return: True if the device has a "big-endian" property, or if the kernel
+ *  was compiled for BE *and* the device has a "native-endian" property.
+ *  Returns false otherwise.
+ */
+bool device_property_is_big_endian(struct device *dev)
+{
+	return fwnode_call_bool_op(dev_fwnode(dev), device_is_big_endian);
+}
+EXPORT_SYMBOL_GPL(device_property_is_big_endian);
+
+/**
+ * device_property_is_compatible
+ * @dev: Device to get the property of
+ *
+ * Checks if the given "compat" string matches one of the strings in
+ * the device's "compatible" property
+ *
+ * Return: True if the given "compat" string match one of the strings.
+ */
+bool device_property_is_compatible(struct device *dev, const char *compat)
+{
+	return fwnode_property_match_string(dev_fwnode(dev), "compatible", compat) >= 0;
+}
+EXPORT_SYMBOL_GPL(device_property_is_compatible);
+
 static int fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
 					  const char *propname,
 					  unsigned int elem_size, void *val,

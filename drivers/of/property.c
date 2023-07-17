@@ -1444,6 +1444,16 @@ static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 	return 0;
 }
 
+static bool of_fwnode_device_is_big_endian(const struct fwnode_handle *fwnode)
+{
+	if (of_property_read_bool(to_of_node(fwnode), "big-endian"))
+		return true;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
+	    of_property_read_bool(to_of_node(fwnode), "native-endian"))
+		return true;
+	return false;
+}
+
 const struct fwnode_operations of_fwnode_ops = {
 	.get = of_fwnode_get,
 	.put = of_fwnode_put,
@@ -1467,5 +1477,6 @@ const struct fwnode_operations of_fwnode_ops = {
 	.iomap = of_fwnode_iomap,
 	.irq_get = of_fwnode_irq_get,
 	.add_links = of_fwnode_add_links,
+	.device_is_big_endian = of_fwnode_device_is_big_endian,
 };
 EXPORT_SYMBOL_GPL(of_fwnode_ops);
