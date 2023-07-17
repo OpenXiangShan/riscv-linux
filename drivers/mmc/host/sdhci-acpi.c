@@ -672,6 +672,34 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_amd_emmc = {
 	.priv_size	= sizeof(struct amd_sdhci_host),
 };
 
+static int sdhci_acpi_bosc_sd_probe_slot(struct platform_device *pdev,
+					 struct acpi_device *adev)
+{
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host   = c->host;
+	int ret = 0;
+	u32 max_req_size;
+
+	ret = device_property_read_u32(&pdev->dev, "max_req_size", &max_req_size);
+	if (ret < 0)
+		max_req_size = 524288;
+	else
+		max_req_size = max_req_size;
+
+	host->max_req_size = max_req_size;
+	dev_info(&pdev->dev, "max_req_size: %d\n", host->max_req_size);
+
+	host->max_segs = 128;
+
+	return 0;
+}
+
+static const struct sdhci_acpi_slot sdhci_acpi_slot_bosc_sd = {
+	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
+	.probe_slot = sdhci_acpi_bosc_sd_probe_slot,
+};
+
+
 struct sdhci_acpi_uid_slot {
 	const char *hid;
 	const char *uid;
@@ -697,6 +725,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "QCOM8052", NULL, &sdhci_acpi_slot_qcom_sd },
 	{ "AMDI0040", NULL, &sdhci_acpi_slot_amd_emmc },
 	{ "AMDI0041", NULL, &sdhci_acpi_slot_amd_emmc },
+	{ "PRP0001", NULL, &sdhci_acpi_slot_bosc_sd},
 	{ },
 };
 
@@ -1025,10 +1054,17 @@ static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 			sdhci_acpi_runtime_resume, NULL)
 };
 
+static const struct of_device_id sdhci_prp0001_dt_ids[] = {
+	{
+		.compatible = "snps,sdhci",
+	},
+};
+
 static struct platform_driver sdhci_acpi_driver = {
 	.driver = {
 		.name			= "sdhci-acpi",
 		.probe_type		= PROBE_PREFER_ASYNCHRONOUS,
+		.of_match_table         = sdhci_prp0001_dt_ids,
 		.acpi_match_table	= sdhci_acpi_ids,
 		.pm			= &sdhci_acpi_pm_ops,
 	},
