@@ -113,6 +113,13 @@ static struct fwnode_handle *riscv_intc_hwnode(void)
 	return intc_domain->fwnode;
 }
 
+#ifdef CONFIG_ACPI
+static struct fwnode_handle *riscv_gsi_intc_hwnode(u32 gsi)
+{
+	return intc_domain->fwnode;
+}
+#endif
+
 static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 {
 	int rc;
@@ -132,6 +139,9 @@ static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 
 	riscv_set_intc_hwnode_fn(riscv_intc_hwnode);
 
+#ifdef CONFIG_ACPI
+	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_intc_hwnode);
+#endif
 	pr_info("%d local interrupts mapped\n", BITS_PER_LONG);
 
 	return 0;
