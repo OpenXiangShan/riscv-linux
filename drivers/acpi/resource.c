@@ -542,8 +542,8 @@ static bool acpi_dev_irq_override(u32 gsi, u8 triggering, u8 polarity,
 	return true;
 }
 
-static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
-				     u8 triggering, u8 polarity, u8 shareable,
+static void acpi_dev_get_irqresource(struct acpi_device *dev, struct resource *res,
+				     u32 gsi, u8 triggering, u8 polarity, u8 shareable,
 				     u8 wake_capable, bool check_override)
 {
 	int irq, p, t;
@@ -581,7 +581,7 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 	}
 
 	res->flags = acpi_dev_irq_flags(triggering, polarity, shareable, wake_capable);
-	irq = acpi_register_gsi(NULL, gsi, triggering, polarity);
+	irq = acpi_register_gsi(dev, gsi, triggering, polarity);
 	if (irq >= 0) {
 		res->start = irq;
 		res->end = irq;
@@ -609,8 +609,8 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
  * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
  * 3) true: valid assigned resource
  */
-bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
-				 struct resource *res)
+bool acpi_dev_resource_interrupt(struct acpi_device *dev, struct acpi_resource *ares,
+				 int index, struct resource *res)
 {
 	struct acpi_resource_irq *irq;
 	struct acpi_resource_extended_irq *ext_irq;
@@ -626,7 +626,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 			irqresource_disabled(res, 0);
 			return false;
 		}
-		acpi_dev_get_irqresource(res, irq->interrupts[index],
+		acpi_dev_get_irqresource(dev, res, irq->interrupts[index],
 					 irq->triggering, irq->polarity,
 					 irq->shareable, irq->wake_capable,
 					 true);
@@ -638,7 +638,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 			return false;
 		}
 		if (is_gsi(ext_irq))
-			acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
+			acpi_dev_get_irqresource(dev, res, ext_irq->interrupts[index],
 					 ext_irq->triggering, ext_irq->polarity,
 					 ext_irq->shareable, ext_irq->wake_capable,
 					 false);
@@ -670,6 +670,7 @@ struct res_proc_context {
 	void *preproc_data;
 	int count;
 	int error;
+	struct acpi_device *dev;
 };
 
 static acpi_status acpi_dev_new_resource_entry(struct resource_win *win,
@@ -695,6 +696,7 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 	struct res_proc_context *c = context;
 	struct resource_win win;
 	struct resource *res = &win.res;
+	struct acpi_device *dev = c->dev;
 	int i;
 
 	if (c->preproc) {
@@ -717,7 +719,7 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 	    || acpi_dev_resource_ext_address_space(ares, &win))
 		return acpi_dev_new_resource_entry(&win, c);
 
-	for (i = 0; acpi_dev_resource_interrupt(ares, i, res); i++) {
+	for (i = 0; acpi_dev_resource_interrupt(dev, ares, i, res); i++) {
 		acpi_status status;
 
 		status = acpi_dev_new_resource_entry(&win, c);
@@ -747,6 +749,7 @@ static int __acpi_dev_get_resources(struct acpi_device *adev,
 	c.preproc_data = preproc_data;
 	c.count = 0;
 	c.error = 0;
+	c.dev = adev;
 	status = acpi_walk_resources(adev->handle, method,
 				     acpi_dev_process_resource, &c);
 	if (ACPI_FAILURE(status)) {

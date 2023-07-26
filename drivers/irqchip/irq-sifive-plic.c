@@ -79,6 +79,8 @@ struct riscv_plic_acpi_info {
 	uint8_t nr_contexts_per_hart;
 	uint16_t nr_hart;
 	struct irq_with_context *irq_per_hart;
+	struct fwnode_handle* parent;
+	struct acpi_madt_node *madt_node;
 };
 #endif
 
@@ -526,13 +528,25 @@ static int riscv_plic_acpi_init_common(struct riscv_plic_acpi_info *pi,
 				unsigned long plic_quirks)
 {
 	int rc = 0, i, j, nr_handlers = 0;
+	struct platform_device *pdev;
 	struct fwnode_handle *fwnode;
 	struct plic_handler *handler;
+	struct irq_fwspec fwspec;
 
 	acpi_plic_priv = kzalloc(sizeof(*acpi_plic_priv), GFP_KERNEL);
 	if (!acpi_plic_priv) {
 		pr_err("out of memory\n");
 		return -ENOMEM;
+	}
+
+	pdev = platform_device_alloc("RISCV-PLIC", PLATFORM_DEVID_AUTO);
+	if (!pdev)
+		return -ENOMEM;
+
+	rc = platform_device_add_data(pdev, &pi->madt_node, sizeof(pi->madt_node));
+	if (rc) {
+		platform_device_put(pdev);
+		return rc;
 	}
 
 	acpi_plic_priv->plic_quirks = plic_quirks;
@@ -549,6 +563,12 @@ static int riscv_plic_acpi_init_common(struct riscv_plic_acpi_info *pi,
 		rc = -ENOMEM;
 		goto fail_ioummap;
 	}
+
+	pdev->dev.fwnode = fwnode;
+
+	acpi_madt_set_fwnode(
+		acpi_get_table_phy(pi->madt_node,
+			sizeof(*(pi->madt_node))), fwnode);
 
 	acpi_plic_priv->irqdomain = irq_domain_create_linear(fwnode, pi->nr_irqs + 1,
 			&plic_irqdomain_ops, acpi_plic_priv);
@@ -582,7 +602,15 @@ static int riscv_plic_acpi_init_common(struct riscv_plic_acpi_info *pi,
 				continue;
 			}
 
-			virq = acpi_register_gsi(NULL, pi->irq_per_hart[i].irq[j], ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_HIGH);
+			fwspec.fwnode = pi->parent;
+			if (WARN_ON(!fwspec.fwnode)) {
+				pr_warn("GSI: No registered irqchip, giving up\n");
+				return -EINVAL;
+			}
+			fwspec.param[0] = pi->irq_per_hart[i].irq[j];
+			fwspec.param[1] = acpi_dev_get_irq_type(ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_HIGH);
+			fwspec.param_count = 2;
+			virq = irq_create_fwspec_mapping(&fwspec);
 			if (virq < 0) {
 				pr_err("request irq fail\n");
 				continue;
@@ -624,7 +652,7 @@ handler_done:
 		plic_cpuhp_setup_done = true;
 	}
 
-	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_plic_hwnode);
+	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_plic_hwnode, acpi_madt_get_irq_domain);
 
 	pr_info("riscv acpi plic: mapped %d interrupts with %d handlers for"
 		" %d contexts.\n", pi->nr_irqs, nr_handlers, pi->nr_contexts_per_hart * pi->nr_hart);
@@ -648,7 +676,8 @@ static struct riscv_plic_acpi_info plic_info = {
 static int __init riscv_plic_acpi_init(union acpi_subtable_headers *header,
 				       const unsigned long end)
 {
-	struct acpi_madt_plic *plic = (struct acpi_madt_plic*)header;
+	struct acpi_madt_plic *plic = (struct acpi_madt_plic *)header;
+	struct acpi_madt_node *node = (struct acpi_madt_node *)header;
 	struct riscv_plic_acpi_info *pi = &plic_info;
 	int i;
 
@@ -682,6 +711,9 @@ static int __init riscv_plic_acpi_init(union acpi_subtable_headers *header,
 		pi->irq_per_hart[i].irq[0] = PLIC_M_EXT_EXCEPTION;
 		pi->irq_per_hart[i].irq[1] = PLIC_S_EXT_EXCEPTION;
 	}
+
+	pi->madt_node = node;
+	pi->parent = acpi_madt_get_parent(pi->madt_node);
 
 	pr_info("%s nr_irq:%d max_priority:%d base:0x%x size:0x%x nr_hart:%d\n",
 		__FUNCTION__, pi->nr_irqs, pi->max_priority, pi->base, pi->size, pi->nr_hart);

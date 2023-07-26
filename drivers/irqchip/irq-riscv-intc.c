@@ -140,7 +140,7 @@ static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 	riscv_set_intc_hwnode_fn(riscv_intc_hwnode);
 
 #ifdef CONFIG_ACPI
-	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_intc_hwnode);
+	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_intc_hwnode, NULL);
 #endif
 	pr_info("%d local interrupts mapped\n", BITS_PER_LONG);
 
@@ -187,6 +187,7 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 	int rc;
 	struct fwnode_handle *fn;
 	struct acpi_madt_rintc *rintc;
+	struct acpi_madt_node *madt_node;
 
 	rintc = (struct acpi_madt_rintc *)header;
 
@@ -204,6 +205,15 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 		pr_err("unable to allocate INTC FW node\n");
 		return -ENOMEM;
 	}
+
+	madt_node = (struct acpi_madt_node *)rintc;
+	if (!madt_node) {
+		pr_err("unable to allocate madt node\n");
+		return -ENOMEM;
+	}
+
+	acpi_madt_set_fwnode(
+		acpi_get_table_phy(madt_node, sizeof(*madt_node)), fn);
 
 	rc = riscv_intc_init_common(fn);
 	if (rc) {

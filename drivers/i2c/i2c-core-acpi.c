@@ -181,7 +181,7 @@ static int i2c_acpi_add_irq_resource(struct acpi_resource *ares, void *data)
 	if (irq_ctx->irq > 0)
 		return 1;
 
-	if (!acpi_dev_resource_interrupt(ares, 0, &r))
+	if (!acpi_dev_resource_interrupt(NULL, ares, 0, &r))
 		return 1;
 
 	irq_ctx->irq = i2c_dev_irq_from_resources(&r, 1);

@@ -13,7 +13,40 @@
 enum acpi_irq_model_id acpi_irq_model;
 
 static struct fwnode_handle *(*acpi_get_gsi_domain_id)(u32 gsi);
+static struct fwnode_handle *(*acpi_get_gsi_domain_id_override)(acpi_handle handle,
+				u32 gsi);
 static u32 (*acpi_gsi_to_irq_fallback)(u32 gsi);
+
+struct madt_fwnode {
+	struct list_head list;
+	struct acpi_madt_node *madt_node;
+	struct fwnode_handle *fwnode;
+};
+static LIST_HEAD(madt_fwnode_list);
+static DEFINE_SPINLOCK(madt_fwnode_lock);
+
+typedef acpi_status (*madt_find_node_callback)(struct acpi_madt_node *node, void *context);
+
+static struct fwnode_handle *acpi_get_irq_domain(acpi_handle handle, uint32_t gsi)
+{
+	struct fwnode_handle *ret_fwnode = NULL;
+	struct fwnode_handle *fwnode = NULL;
+
+	if (acpi_get_gsi_domain_id)
+		ret_fwnode = acpi_get_gsi_domain_id(gsi);
+
+	if (acpi_get_gsi_domain_id_override && handle) {
+		fwnode = acpi_get_gsi_domain_id_override(handle, gsi);
+		if (fwnode)
+			ret_fwnode = fwnode;
+		else {
+			dump_stack();
+			pr_warn("get NULL from acpi_get_gsi_domain_id_override!!\n");
+		}
+	}
+
+	return ret_fwnode;
+}
 
 /**
  * acpi_gsi_to_irq() - Retrieve the linux irq number for a given GSI
@@ -29,7 +62,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
 	struct irq_domain *d;
 
-	d = irq_find_matching_fwnode(acpi_get_gsi_domain_id(gsi),
+	d = irq_find_matching_fwnode(acpi_get_irq_domain(NULL, gsi),
 					DOMAIN_BUS_ANY);
 	*irq = irq_find_mapping(d, gsi);
 	/*
@@ -53,12 +86,13 @@ EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
  * Returns: a valid linux IRQ number on success
  *          -EINVAL on failure
  */
-int acpi_register_gsi(struct device *dev, u32 gsi, int trigger,
+int acpi_register_gsi(struct acpi_device *adev, u32 gsi, int trigger,
 		      int polarity)
 {
 	struct irq_fwspec fwspec;
 
-	fwspec.fwnode = acpi_get_gsi_domain_id(gsi);
+	fwspec.fwnode = acpi_get_irq_domain(acpi_device_handle(adev), gsi);
+
 	if (WARN_ON(!fwspec.fwnode)) {
 		pr_warn("GSI: No registered irqchip, giving up\n");
 		return -EINVAL;
@@ -84,7 +118,7 @@ void acpi_unregister_gsi(u32 gsi)
 	if (WARN_ON(acpi_irq_model == ACPI_IRQ_MODEL_GIC && gsi < 16))
 		return;
 
-	d = irq_find_matching_fwnode(acpi_get_gsi_domain_id(gsi),
+	d = irq_find_matching_fwnode(acpi_get_irq_domain(NULL, gsi),
 				     DOMAIN_BUS_ANY);
 	irq = irq_find_mapping(d, gsi);
 	irq_dispose_mapping(irq);
@@ -113,7 +147,7 @@ acpi_get_irq_source_fwhandle(const struct acpi_resource_source *source,
 	acpi_status status;
 
 	if (!source->string_length)
-		return acpi_get_gsi_domain_id(gsi);
+		return acpi_get_irq_domain(NULL, gsi);
 
 	status = acpi_get_handle(NULL, source->string_ptr, &handle);
 	if (WARN_ON(ACPI_FAILURE(status)))
@@ -138,6 +172,7 @@ struct acpi_irq_parse_one_ctx {
 	unsigned int index;
 	unsigned long *res_flags;
 	struct irq_fwspec *fwspec;
+	acpi_handle *handle;
 };
 
 /**
@@ -204,7 +239,7 @@ static acpi_status acpi_irq_parse_one_cb(struct acpi_resource *ares,
 			ctx->index -= irq->interrupt_count;
 			return AE_OK;
 		}
-		fwnode = acpi_get_gsi_domain_id(irq->interrupts[ctx->index]);
+		fwnode = acpi_get_irq_domain(ctx->handle, irq->interrupts[ctx->index]);
 		acpi_irq_parse_one_match(fwnode, irq->interrupts[ctx->index],
 					 irq->triggering, irq->polarity,
 					 irq->shareable, irq->wake_capable, ctx);
@@ -247,7 +282,7 @@ static acpi_status acpi_irq_parse_one_cb(struct acpi_resource *ares,
 static int acpi_irq_parse_one(acpi_handle handle, unsigned int index,
 			      struct irq_fwspec *fwspec, unsigned long *flags)
 {
-	struct acpi_irq_parse_one_ctx ctx = { -EINVAL, index, flags, fwspec };
+	struct acpi_irq_parse_one_ctx ctx = { -EINVAL, index, flags, fwspec, handle};
 
 	acpi_walk_resources(handle, METHOD_NAME__CRS, acpi_irq_parse_one_cb, &ctx);
 	return ctx.rc;
@@ -302,10 +337,12 @@ EXPORT_SYMBOL_GPL(acpi_irq_get);
  *	for a given GSI
  */
 void __init acpi_set_irq_model(enum acpi_irq_model_id model,
-			       struct fwnode_handle *(*fn)(u32))
+			       struct fwnode_handle *(*fn)(u32),
+			       struct fwnode_handle *(*fn2)(acpi_handle, u32))
 {
 	acpi_irq_model = model;
 	acpi_get_gsi_domain_id = fn;
+	acpi_get_gsi_domain_id_override = fn2;
 }
 
 /**
@@ -339,7 +376,7 @@ struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
 	if (acpi_irq_model != ACPI_IRQ_MODEL_GIC)
 		return NULL;
 
-	d = irq_find_matching_fwnode(acpi_get_gsi_domain_id(0),
+	d = irq_find_matching_fwnode(acpi_get_irq_domain(ACPI_HANDLE_FWNODE(fwnode), 0),
 				     DOMAIN_BUS_ANY);
 
 	if (!d)
@@ -349,3 +386,202 @@ struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
 					   host_data);
 }
 EXPORT_SYMBOL_GPL(acpi_irq_create_hierarchy);
+
+/**
+ * acpi_madt_set_fwnode - Create madt_fwnode
+ *
+ * @node: MADT node associated with the irq controller
+ * @fwnode: fwnode of the irq domain
+ */
+int acpi_madt_set_fwnode(struct acpi_madt_node *node,
+			 struct fwnode_handle *fwnode)
+{
+	struct madt_fwnode *fw;
+
+	if (!node || !fwnode) {
+		pr_err("node or fwnode is NULL\n");
+		return -EINVAL;
+	}
+
+	fw = kzalloc(sizeof(struct madt_fwnode), GFP_KERNEL);
+	if(!fw) {
+		pr_err("unable allocate madt fwnode\n");
+		return -ENOMEM;
+	}
+
+	INIT_LIST_HEAD(&fw->list);
+	fw->madt_node = node;
+	fw->fwnode = fwnode;
+
+	spin_lock(&madt_fwnode_lock);
+	list_add_tail(&fw->list, &madt_fwnode_list);
+	spin_unlock(&madt_fwnode_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_madt_set_fwnode);
+
+/**
+ * acpi_madt_get_fwnode - Retrieve fwnode associated with an MADT node
+ *
+ * @node: MADR table node to be looked-up
+ *
+ * Returns: fwnode_handle pointer on success, NULL on fail
+ */
+struct fwnode_handle *acpi_madt_get_fwnode(
+			struct acpi_madt_node *node)
+{
+	struct madt_fwnode *curr;
+	struct fwnode_handle *fwnode = NULL;
+
+	spin_lock(&madt_fwnode_lock);
+	list_for_each_entry(curr, &madt_fwnode_list, list) {
+		if (curr->madt_node == node) {
+			fwnode = curr->fwnode;
+			break;
+		}
+	}
+	spin_unlock(&madt_fwnode_lock);
+
+	return fwnode;
+}
+EXPORT_SYMBOL_GPL(acpi_madt_get_fwnode);
+
+static struct acpi_madt_node *madt_scan_node(uint8_t type,
+				      madt_find_node_callback cb,
+				      void *context)
+{
+	acpi_status status;
+	unsigned long node_start, node_end;
+	struct acpi_subtable_header *node;
+	struct acpi_madt_node *comp;
+	struct acpi_table_header *madt_table;
+
+	status = acpi_get_table(ACPI_SIG_MADT, 0, &madt_table);
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND) {
+			const char *msg = acpi_format_exception(status);
+
+			pr_err("Failed to get table, %s\n", msg);
+		}
+
+		acpi_put_table((struct acpi_table_header *)madt_table);
+
+		return NULL;
+	}
+
+	node_start = (unsigned long)madt_table + sizeof(struct acpi_table_madt);
+	node_end = (unsigned long)madt_table + madt_table->length;
+	node = (struct acpi_subtable_header *)node_start;
+
+	while ((unsigned long)node + node->length <= node_end) {
+		if (node->type == type) {
+			comp = (struct acpi_madt_node *)node;
+			if (ACPI_SUCCESS(cb(comp, context))) {
+				acpi_put_table((struct acpi_table_header *)madt_table);
+				return comp;
+			}
+		}
+
+		node = ACPI_ADD_PTR(struct acpi_subtable_header, node, node->length);
+	}
+
+	acpi_put_table((struct acpi_table_header *)madt_table);
+
+	return NULL;
+}
+
+static acpi_status madt_match_node_callback(struct acpi_madt_node *node,
+					    void *context)
+{
+	acpi_status status;
+	acpi_handle *handle = context;
+	struct acpi_madt_name_component *comp;
+	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buf);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Can't get device full path name\n");
+		return status;
+	}
+
+	comp = (struct acpi_madt_name_component *)node;
+
+	status = !strcmp(comp->object_name, buf.pointer) ? AE_OK : AE_NOT_FOUND;
+
+	acpi_os_free(buf.pointer);
+
+	return status;
+}
+
+static struct acpi_madt_node *acpi_madt_get_parent_node(struct acpi_madt_node *node)
+{
+	acpi_status status;
+	struct acpi_madt_node *parent_node;
+	struct acpi_table_header *madt_table;
+
+	status = acpi_get_table(ACPI_SIG_MADT, 0, &madt_table);
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND) {
+			const char *msg = acpi_format_exception(status);
+
+			pr_err("Failed to get table, %s\n", msg);
+		}
+		acpi_put_table((struct acpi_table_header *)madt_table);
+
+		return NULL;
+	}
+
+	parent_node = ACPI_ADD_PTR(struct acpi_madt_node, madt_table,
+				node->out_reference);
+
+	acpi_put_table((struct acpi_table_header *)madt_table);
+
+	return parent_node;
+}
+
+/**
+ * acpi_madt_get_irq_domain - Get the fwnode_handle of irq domain with an acpi handle
+ *
+ * @handle: acpi handle of a acpi device
+ *
+ * Returns: fwnode_handle pointer on success, NULL on fail
+ */
+struct fwnode_handle *acpi_madt_get_irq_domain(acpi_handle handle, uint32_t hwirq)
+{
+	struct acpi_madt_node *node;
+	struct acpi_madt_node *parent_node;
+
+	node = madt_scan_node(ACPI_MADT_TYPE_NAMED_COMP,
+		madt_match_node_callback, handle);
+	if (!node)
+		return NULL;
+
+	parent_node = acpi_madt_get_parent_node(node);
+	if (!parent_node)
+		return NULL;
+
+	return acpi_madt_get_fwnode(
+		acpi_get_table_phy(parent_node, sizeof(*parent_node)));
+}
+EXPORT_SYMBOL_GPL(acpi_madt_get_irq_domain);
+
+/**
+ * acpi_madt_get_parent - Get the fwnode_handle of irq domain cascading
+ * with a irq domain associated with an acpi_madt_node
+ *
+ * @node: acpi_madt_node of a irq controller
+ * Return: fwnode_handle pointer on success, NULL on fail
+ */
+struct fwnode_handle *acpi_madt_get_parent(struct acpi_madt_node *node)
+{
+	struct acpi_madt_node *parent_node;
+
+	parent_node = acpi_madt_get_parent_node(node);
+	if (!parent_node)
+		return NULL;
+
+	return acpi_madt_get_fwnode(
+		acpi_get_table_phy(parent_node, sizeof(*parent_node)));
+}
+EXPORT_SYMBOL_GPL(acpi_madt_get_parent);

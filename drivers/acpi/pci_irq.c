@@ -450,7 +450,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 
-	rc = acpi_register_gsi(&dev->dev, gsi, triggering, polarity);
+	rc = acpi_register_gsi(ACPI_COMPANION(&dev->dev), gsi, triggering, polarity);
 	if (rc < 0) {
 		dev_warn(&dev->dev, "PCI INT %c: failed to register GSI\n",
 			 pin_name(pin));

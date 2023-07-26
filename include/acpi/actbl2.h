@@ -856,6 +856,12 @@ struct acpi_table_madt {
 	u32 flags;
 };
 
+struct acpi_madt_node {
+	u8 type;
+	u8 length;
+	u32 out_reference;
+};
+
 /* Masks for Flags field above */
 
 #define ACPI_MADT_PCAT_COMPAT       (1)	/* 00: System also has dual 8259s */
@@ -894,8 +900,9 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_LPC_PIC = 23,
 	ACPI_MADT_TYPE_RINTC = 24,
 	ACPI_MADT_TYPE_PLIC = 25,
-	ACPI_MADT_TYPE_RESERVED = 26,   /* 26 to 0x7F are reserved */
-	ACPI_MADT_TYPE_OEM_RESERVED = 0x80	/* 0x80 to 0xFF are reserved for OEM use */
+	ACPI_MADT_TYPE_NAMED_COMP = 26,
+	ACPI_MADT_TYPE_RESERVED = 27,        /* 26 to 0x7F are reserved */
+	ACPI_MADT_TYPE_OEM_RESERVED = 0x80   /* 0x80 to 0xFF are reserved for OEM use */
 };
 
 /*
@@ -1266,12 +1273,20 @@ struct acpi_madt_rintc {
 /* 25: RISC-V PLIC*/
 struct acpi_madt_plic {
 	struct acpi_subtable_header header;
+	u32 out_reference;
 	u8 enable;
 	u8 max_priority;
 	u16 nr_dev;
 	u32 base;
 	u32 size;
 	u16 nr_hart;
+};
+
+/* 26: RISC-V MADT Name component*/
+struct acpi_madt_name_component {
+	struct acpi_subtable_header header;
+	u32 out_reference;
+	u8 object_name[1];
 };
 
 /* Values for RISC-V INTC Version field above */

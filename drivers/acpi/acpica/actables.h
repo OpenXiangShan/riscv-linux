@@ -145,4 +145,6 @@ void acpi_tb_put_table(struct acpi_table_desc *table_desc);
  */
 acpi_status acpi_tb_load_namespace(void);
 
+void *acpi_tb_get_mapped_phys(void *ptr, uint32_t size);
+
 #endif				/* __ACTABLES_H__ */

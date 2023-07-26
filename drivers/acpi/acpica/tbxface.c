@@ -528,3 +528,10 @@ cleanup:
 }
 
 ACPI_EXPORT_SYMBOL(acpi_remove_table_handler)
+
+void *acpi_get_table_phy(void *ptr, uint32_t size)
+{
+	return acpi_tb_get_mapped_phys(ptr, size);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_table_phy)

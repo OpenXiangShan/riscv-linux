@@ -179,9 +179,9 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	}
 
 	r->flags = 0;
-	if (acpi_dev_resource_interrupt(res, 0, r)) {
+	if (acpi_dev_resource_interrupt(NULL, res, 0, r)) {
 		pnpacpi_add_irqresource(dev, r);
-		for (i = 1; acpi_dev_resource_interrupt(res, i, r); i++)
+		for (i = 1; acpi_dev_resource_interrupt(NULL, res, i, r); i++)
 			pnpacpi_add_irqresource(dev, r);
 
 		if (i > 1) {

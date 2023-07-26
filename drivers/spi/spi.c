@@ -2618,7 +2618,7 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 	} else if (lookup->irq < 0) {
 		struct resource r;
 
-		if (acpi_dev_resource_interrupt(ares, 0, &r))
+		if (acpi_dev_resource_interrupt(NULL, ares, 0, &r))
 			lookup->irq = r.start;
 	}
 

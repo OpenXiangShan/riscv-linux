@@ -85,7 +85,7 @@ static acpi_status acpi_ged_request_interrupt(struct acpi_resource *ares,
 	if (ares->type == ACPI_RESOURCE_TYPE_END_TAG)
 		return AE_OK;
 
-	if (!acpi_dev_resource_interrupt(ares, 0, &r)) {
+	if (!acpi_dev_resource_interrupt(NULL, ares, 0, &r)) {
 		dev_err(dev, "unable to parse IRQ resource\n");
 		return AE_ERROR;
 	}

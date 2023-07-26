@@ -86,7 +86,9 @@ struct acpi_ioremap {
 };
 
 static LIST_HEAD(acpi_ioremaps);
+static LIST_HEAD(acpi_permanent_ioremaps);
 static DEFINE_MUTEX(acpi_ioremap_lock);
+static DEFINE_MUTEX(acpi_permanent_ioremap_lock);
 #define acpi_ioremap_lock_held() lock_is_held(&acpi_ioremap_lock.dep_map)
 
 static void __init acpi_request_region (struct acpi_generic_address *gas,
@@ -307,6 +309,31 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 		iounmap(vaddr);
 }
 
+static int setup_permanent_ioreamp_map(acpi_physical_address phys,
+				       void *virt, acpi_size size)
+{
+	struct acpi_ioremap *map;
+
+	mutex_lock(&acpi_permanent_ioremap_lock);
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map) {
+		mutex_unlock(&acpi_permanent_ioremap_lock);
+		return -ENOMEM;
+	}
+
+	INIT_LIST_HEAD(&map->list);
+	map->virt = (void __iomem __force *)((unsigned long)virt & PAGE_MASK);
+	map->phys = phys;
+	map->size = size;
+
+	list_add_tail_rcu(&map->list, &acpi_permanent_ioremaps);
+
+	mutex_unlock(&acpi_permanent_ioremap_lock);
+
+	return 0;
+}
+
 /**
  * acpi_os_map_iomem - Get a virtual address for a given physical address range.
  * @phys: Start of the physical address range to map.
@@ -333,8 +360,16 @@ void __iomem __ref
 		return NULL;
 	}
 
-	if (!acpi_permanent_mmap)
-		return __acpi_map_table((unsigned long)phys, size);
+	if (!acpi_permanent_mmap) {
+		virt = __acpi_map_table((unsigned long)phys, size);
+		if (!virt)
+			return virt;
+
+		if (setup_permanent_ioreamp_map(phys, virt, size))
+			pr_warn("Cannot setup permanent ioremap map\n");
+
+		return virt;
+	}
 
 	mutex_lock(&acpi_ioremap_lock);
 	/* Check if there's a suitable mapping already. */
@@ -1768,3 +1803,37 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state,
 					       reg_a_value, reg_b_value);
 	return status;
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_mapped_phys
+ *
+ * PARAMETERS:  virt - virtaul address of acpi table
+ *              size - size of acpi table
+ *
+ * RETURN:      physical address of acpi table
+ *
+ * DESCRIPTION: Obtain address base on virtaul address of acpi table
+ *
+ ******************************************************************************/
+void *acpi_get_mapped_phys(void *virt, uint32_t size)
+{
+	struct acpi_ioremap *map;
+
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list, acpi_ioremap_lock_held()){
+		if (map->virt <= virt &&
+		    virt + size <= map->virt + map->size){
+			return (void *)(map->phys + (virt - map->virt));
+		}
+	}
+
+	list_for_each_entry_rcu(map, &acpi_permanent_ioremaps, list, acpi_ioremap_lock_held()){
+		if (map->virt <= virt &&
+		    virt + size <= map->virt + map->size){
+			return (void *)(map->phys + (virt - map->virt));
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(acpi_get_mapped_phys);

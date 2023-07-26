@@ -972,5 +972,6 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 void acpi_run_debugger(char *batch_buffer);
 
 void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
+void *acpi_get_table_phy(void *ptr, uint32_t size);
 
 #endif				/* __ACXFACE_H__ */

@@ -355,12 +355,20 @@ static inline bool acpi_sci_irq_valid(void)
 extern int sbf_port;
 extern unsigned long acpi_realmode_flags;
 
-int acpi_register_gsi (struct device *dev, u32 gsi, int triggering, int polarity);
+int acpi_register_gsi (struct acpi_device *adev, u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 int acpi_isa_irq_to_gsi (unsigned isa_irq, u32 *gsi);
 
+struct fwnode_handle *acpi_madt_get_irq_domain(acpi_handle handle,
+			uint32_t hwirq);
+struct fwnode_handle *acpi_madt_get_parent(struct acpi_madt_node *node);
+struct fwnode_handle *acpi_madt_get_fwnode(
+			struct acpi_madt_node *node);
+int acpi_madt_set_fwnode(struct acpi_madt_node *node,
+			 struct fwnode_handle *fwnode);
 void acpi_set_irq_model(enum acpi_irq_model_id model,
-			struct fwnode_handle *(*)(u32));
+			struct fwnode_handle *(*)(u32),
+			struct fwnode_handle *(*fn2)(acpi_handle, u32));
 void acpi_set_gsi_to_irq_fallback(u32 (*)(u32));
 
 struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
@@ -500,8 +508,8 @@ bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
 					 struct resource_win *win);
 unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable, u8 wake_capable);
 unsigned int acpi_dev_get_irq_type(int triggering, int polarity);
-bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
-				 struct resource *res);
+bool acpi_dev_resource_interrupt(struct acpi_device *dev, struct acpi_resource *ares,
+				 int index, struct resource *res);
 
 void acpi_dev_free_resource_list(struct list_head *list);
 int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,

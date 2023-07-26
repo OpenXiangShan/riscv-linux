@@ -2190,7 +2190,7 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	 * Linux. So don't bother checking for the non-extended format.
 	 */
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		if (!acpi_dev_resource_interrupt(res, 0, &r)) {
+		if (!acpi_dev_resource_interrupt(NULL, res, 0, &r)) {
 			pr_err("Unable to parse Hyper-V ACPI interrupt\n");
 			return AE_ERROR;
 		}

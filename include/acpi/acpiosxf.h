@@ -193,6 +193,8 @@ acpi_os_get_physical_address(void *logical_address,
 			     acpi_physical_address *physical_address);
 #endif
 
+void *acpi_get_mapped_phys(void *virt, uint32_t size);
+
 /*
  * Memory/Object Cache
  */
