@@ -120,7 +120,7 @@ config PCI_DOE
 	bool
 
 config PCI_ECAM
-	bool
+	tristate "Pci Ecam"
 
 config PCI_LOCKLESS_CONFIG
 	bool

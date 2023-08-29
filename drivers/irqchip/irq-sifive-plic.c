@@ -654,8 +654,8 @@ handler_done:
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, riscv_gsi_plic_hwnode, acpi_madt_get_irq_domain);
 
-	pr_info("riscv acpi plic: mapped %d interrupts with %d handlers for"
-		" %d contexts.\n", pi->nr_irqs, nr_handlers, pi->nr_contexts_per_hart * pi->nr_hart);
+	pr_info("riscv acpi plic(fwnode:0x%llx, irqdomain:0x%llx): mapped %d interrupts with %d handlers for"
+		" %d contexts.\n", fwnode, acpi_plic_priv->irqdomain, pi->nr_irqs, nr_handlers, pi->nr_contexts_per_hart * pi->nr_hart);
 	return 0;
 
 fail_free_fwnode:

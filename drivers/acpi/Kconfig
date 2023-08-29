@@ -264,7 +264,7 @@ config ACPI_PROCESSOR_IDLE
 	select CPU_IDLE
 
 config ACPI_MCFG
-	bool
+	tristate "Mcfg"
 
 config ACPI_CPPC_LIB
 	bool

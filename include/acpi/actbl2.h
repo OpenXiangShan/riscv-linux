@@ -902,6 +902,7 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_PLIC = 25,
 	ACPI_MADT_TYPE_NAMED_COMP = 26,
 	ACPI_MADT_TYPE_RESERVED = 27,        /* 26 to 0x7F are reserved */
+	ACPI_MADT_TYPE_XDMA_MSI = 28,
 	ACPI_MADT_TYPE_OEM_RESERVED = 0x80   /* 0x80 to 0xFF are reserved for OEM use */
 };
 

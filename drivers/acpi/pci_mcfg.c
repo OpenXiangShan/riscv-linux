@@ -182,6 +182,14 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	LOONGSON_ECAM_MCFG("\0", 1),
 	LOONGSON_ECAM_MCFG("LOONGSON", 1),
 #endif /* LOONGARCH */
+
+#define BOSC_ECAM_MCFG(table_id, rev, seg, ops) \
+	{ "BOSC  ", table_id, rev, seg, MCFG_BUS_ANY, ops }
+
+	BOSC_ECAM_MCFG("NANHU   ", 1, 0, &xdma_pcie_ops),
+	BOSC_ECAM_MCFG("NANHU   ", 1, 1, &xdma_pcie_ops),
+	BOSC_ECAM_MCFG("KMH     ", 1, 0, &xdma_pcie_ops),
+	BOSC_ECAM_MCFG("KMH     ", 1, 1, &xdma_pcie_ops),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
