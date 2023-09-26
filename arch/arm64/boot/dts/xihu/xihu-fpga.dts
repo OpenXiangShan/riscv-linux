@@ -1,0 +1,96 @@
+/dts-v1/;
+
+/ {
+	compatible = "rockchip,rk3588-evb\0rockchip,rk3588";
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	model = "Bosc RK3588";
+
+//	psci {
+//		compatible = "arm,psci-1.0";
+//		method = "smc";
+//		u-boot,dm-pre-reloc;
+//		status = "okay";
+//	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x0>;
+			clock-frequency = <50000000>;
+		};
+	};
+	memory1@100000 {
+		reg = <0x00 0x000000 0x00 0x30ffffff>;
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		device_type = "memory";
+	};
+
+
+	clock-controller@fd7c0000 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;	/* 50 MHZ */
+	};
+
+	intc: interrupt-controller@40000000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <0x03>;
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		ranges;
+		interrupt-controller;
+		reg = <
+			0x00 0x40000000 0x00 0x10000 
+			0x00 0x40040000 0x00 0x20000
+		>;
+	};
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <&intc>;
+		clock-frequency = <1562500>;	/* 50 MHZ */
+/*
+		interrupts = <1 13 4 0>,
+			     <1 14 4 0>,
+			     <1 11 4 0>,
+			     <1 10 4 0>,
+			     <1 12 4 0>; */
+//		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys", "hyp-virt";
+/*
+	    interrupts = <
+			0x01 0x0d 0xf04 
+			0x01 0x0e 0xf04 
+			0x01 0x0b 0xf04 
+			0x01 0x0a 0xf04
+		>; */
+	    interrupts = <
+			0x01 0x0d 0x4
+			0x01 0x0e 0x4
+			0x01 0x0b 0x4 
+			0x01 0x0a 0x4
+		>; 
+	};
+	serial@310b0000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x00 0x310b0000 0x00 0x100>;
+		reg-shift = <0x02>;
+		reg-io-width = <0x04>;
+		interrupts = <0x00 0x0 0x04>;
+		clock-frequency = <50000000>;
+		interrupt-parent = <&intc>;
+		status = "okay";
+	};
+
+	chosen {
+		//bootargs = "earlycon=uart8250,mmio32,0x310b0000  console=ttyS0,115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x310b0000 irqchip.gicv3_pseudo_nmi=0 console=ttyS0,115200n8 random.trust_cpu=on";
+		//bootargs = "earlycon irqchip.gicv3_pseudo_nmi=0 console=ttyS0,115200n8 noinitrd";
+        //bootargs = "rootfstype=ext4 rw rootwait earlycon noinitrd";
+	};
+
+};
