@@ -521,7 +521,7 @@ int __mmc_poll_for_busy(struct mmc_host *host, unsigned int period_us,
 		err = (*busy_cb)(cb_data, &busy);
 		if (err)
 			return err;
-
+		busy = 0;
 		/* Timeout if the device still remains busy. */
 		if (expired && busy) {
 			pr_err("%s: Card stuck being busy! %s\n",
