@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2020-2024 BOSC */
+
+/dts-v1/;
+/include/ "xiangshan-nemu.dtsi"
+
+/ {
+	L18: soc {
+		sdhci: mmc {
+			compatible = "nemu-sdhost";
+			reg = <0x0 0x40002000 0x0 0x1000>;
+			no-sd;
+			no-sdio;
+		};
+	};
+
+	chosen {
+		bootargs = "console=hvc0 earlycon=sbi";
+	};
+};
