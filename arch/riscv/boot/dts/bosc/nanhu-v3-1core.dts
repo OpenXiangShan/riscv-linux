@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+
+#include "nanhu-v3.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v3-dev-1core", "bosc,nanhu-v3";
+	model = "bosc,nanhu-v3-1core";
+
+	chosen {
+		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
+		stdout-path = "/soc/serial@310B0000";
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&serial {
+	clock-frequency = <50000000>;
+};
