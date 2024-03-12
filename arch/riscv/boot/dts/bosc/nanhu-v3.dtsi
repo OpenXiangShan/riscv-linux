@@ -1,0 +1,240 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v3";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <1000000>;//rtc is 1M
+
+		cpu0: cpu@0 {
+			clock-frequency = <1000000>;
+			compatible = "bosc,nanhu-v3", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x0>;
+			riscv,isa = "rv64imafdc";
+			status = "disabled";
+			timebase-frequency = <1000000>;//rtc is 1M
+			tlb-split;
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu1: cpu@1 {
+			clock-frequency = <0>;
+			compatible = "bosc,nanhu-v3", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x1>;
+			riscv,isa = "rv64imafdc";
+			status = "disabled";
+			timebase-frequency = <1000000>;//rtc is 1M
+			tlb-split;
+
+			cpu1_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu2: cpu@2 {
+			clock-frequency = <0>;
+			compatible = "bosc,nanhu-v3", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x2>;
+			riscv,isa = "rv64imafdc";
+			status = "disabled";
+			timebase-frequency = <1000000>;//rtc is 1M
+			tlb-split;
+			cpu2_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu3: cpu@3 {
+			clock-frequency = <0>;
+			compatible = "bosc,nanhu-v3", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x3>;
+			riscv,isa = "rv64imafdc";
+			status = "disabled";
+			timebase-frequency = <1000000>;//rtc is 1M
+			tlb-split;
+
+			cpu3_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "bosc,nanhu-v3-soc", "simple-bus";
+		ranges;
+
+		debug_controller0: debug-controller@0 {
+			compatible = "sifive,debug-013", "riscv,debug-013";
+			interrupts-extended = <&cpu0_intc 65535>;
+			reg = <0x0 0x0 0x0 0x1000>;
+			reg-names = "control";
+		};
+
+		clint0: clint@38000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7 &cpu1_intc 3 &cpu1_intc 7 &cpu2_intc 3 &cpu2_intc 7 &cpu3_intc 3 &cpu3_intc 7>;
+			reg = <0x0 0x38000000 0x0 0x10000>;
+			reg-names = "control";
+			clock-frequency-mhz = <10>;
+		};
+
+		PLIC: interrupt-controller@3c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&cpu0_intc 0xb &cpu0_intc 0x9 &cpu1_intc 0xb &cpu1_intc 0x9 &cpu2_intc 0xb &cpu2_intc 0x9 &cpu3_intc 0xb &cpu3_intc 0x9>;
+			reg = <0 0x3c000000 0 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <7>;
+			riscv,ndev = <64>;
+		};
+
+		clkc: misc_clk_0 {
+			#clock-cells = <0>;
+			clock-frequency = <10000000>;
+			compatible = "fixed-clock";
+		};
+
+		xdma_0: pcie@48000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&clkc>, <&clkc>;
+			compatible = "xlnx,xdma-host-3.00";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_0 1>,
+					<0x0 0 0 2 &pcie_intc_0 2>,
+					<0x0 0 0 3 &pcie_intc_0 3>,
+					<0x0 0 0 4 &pcie_intc_0 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&PLIC>;
+			interrupts = <53 52 51>;
+			//bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x20000000 0x0 0x40000000 0x00000000 0x8000000>;
+			reg = <0x00000000 0x48000000 0x0 0x2000000>;
+
+			pcie_intc_0: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
+
+		xdma_1: pcie@4c000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&clkc>, <&clkc>;
+			compatible = "xlnx,xdma-host-3.00";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_1 1>,
+					<0x0 0 0 2 &pcie_intc_1 2>,
+					<0x0 0 0 3 &pcie_intc_1 3>,
+					<0x0 0 0 4 &pcie_intc_1 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&PLIC>;
+			interrupts = <59 58 57>;
+			//bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x0 0x40000000 0x0 0x60000000 0x00000000 0x20000000>;
+			reg = <0x00000000 0x4c000000 0x0 0x4000000>;
+
+			pcie_intc_1: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
+
+		serial: serial@310B0000 {
+			compatible = "ns16550a";
+			reg = <0x0 0x310B0000 0x0 0x10000>;
+			reg-shift = <0x02>;
+			reg-io-width = <0x04>;
+			interrupt-parent = <&PLIC>;
+			interrupts = <40>;
+			clock-frequency = <10000000>;
+			status = "okay";
+		};
+	};
+
+	memory: memory@100000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+};
