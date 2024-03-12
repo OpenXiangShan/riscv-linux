@@ -273,7 +273,7 @@
 	};
 
 	chosen {
-		bootargs = "root=/dev/nvme0n1p2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
+		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
 		stdout-path = "/soc/serial@310B0000";
 	};
 
