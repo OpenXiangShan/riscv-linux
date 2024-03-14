@@ -1,0 +1,93 @@
+default:
+  tags:
+    - runner
+
+variables:
+  RISCV: /opt/riscv
+  BITSTREAM: kmh-v1
+  SBI: opensbi
+
+stages:
+    - pre
+    - kernel
+    - sbi
+    - bitstream
+    - check
+
+pre-job:
+  stage: pre
+  script:
+    - mkdir -p builds
+    - rm builds/* -rf
+    - dtc arch/riscv/boot/dts/bosc/$BITSTREAM.dts > builds/$BITSTREAM.dtb
+  artifacts:
+    paths:
+    - builds/
+
+kernel-job:
+  stage: kernel
+  variables:
+    ARCH: riscv
+    CROSS_COMPILE: riscv64-unknown-linux-gnu-
+  script:
+    - export PATH=$PATH:$RISCV/bin
+    - make defconfig xiangshan.config
+    - make -j 64
+    - cp arch/riscv/boot builds -rf
+  artifacts:
+    paths:
+    - builds/
+
+  dependencies:
+    - pre-job
+
+opensbi-job:
+  stage: sbi
+  variables:
+    CROSS_COMPILE: riscv64-unknown-linux-gnu-
+  script:
+    - export PATH=$PATH:$RISCV/bin
+    - git clone http://yunfeng2:201904490@172.28.3.77:8989/openxiangshan/opensbi.git -b devel
+    - make -C opensbi PLATFORM=generic FW_FDT_PATH=`pwd`/builds/$BITSTREAM.dtb FW_PAYLOAD_PATH=`pwd`/builds/boot/Image
+    - cp opensbi/build/platform/generic/firmware/fw_payload.bin builds/
+  rules:
+    - if: '$SBI == "opensbi"'
+  artifacts:
+    paths:
+    - builds/
+
+riscv-pk-job:
+  stage: sbi
+  script:
+    - echo build pk
+  rules:
+    - if: '$SBI == "bbl"'
+
+bitstream-job:
+  stage: bitstream
+  variables:
+    TCL: /home/yangyunfeng/fpga_tcl/onboard-ai1-249-remote.tcl
+  script:
+    - JOB_NAME=$BITSTREAM-job
+    - echo "hello" > null.txt
+    - /home/yangyunfeng/bin2fpgadata -i null.txt
+    - source /home/tools/Xilinx/Vivado/2020.2/settings64.sh
+    - export HW=/home/yangyunfeng/fpga_bitstream/$BITSTREAM
+    - vivado -mode batch -source $TCL -tclargs $HW `pwd`/data.txt
+
+test-job:
+  stage: check
+  variables:
+    TCL: /home/yangyunfeng/fpga_tcl/reworkload-249.tcl
+  script:
+    - source /home/tools/Xilinx/Vivado/2020.2/settings64.sh
+    - /home/yangyunfeng/bin2fpgadata -i builds/fw_payload.bin
+    - export HW=/home/yangyunfeng/fpga_bitstream/$BITSTREAM
+    - vivado -mode batch -source $TCL -tclargs $HW `pwd`/data.txt&
+    - git clone http://yunfeng2:201904490@172.28.3.77:8989/yunfeng2/ci_scripts.git
+    - python3 ci_scripts/runcheck.py login_patterns,lmbench_patterns
+    - mv output.txt builds/
+  artifacts:
+    paths:
+    - builds/
+
