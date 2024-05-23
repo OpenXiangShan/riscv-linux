@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nemu";
+	model = "bosc,nemu";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <500000>;//50Khz
+
+		cpu@0 {
+			clock-frequency = <1000000>;
+			compatible = "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x0>;
+			riscv,isa = "rv64imafdc";
+			status = "okay";
+			timebase-frequency = <500000>;//50Khz
+			tlb-split;
+
+			intc_cpu0: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu@1 {
+			clock-frequency = <0>;
+			compatible = "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x1>;
+			riscv,isa = "rv64imafdc";
+			status = "okay";
+			timebase-frequency = <500000>;//50Khz
+			tlb-split;
+
+			intc_cpu1: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		ranges;
+
+		clint@38000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&intc_cpu0 3 &intc_cpu0 7 &intc_cpu1 3 &intc_cpu1 7>;
+			reg = <0x0 0x38000000 0x0 0x10000>;
+			reg-names = "control";
+			clock-frequency-mhz = <25>;
+		};
+
+		PLIC: interrupt-controller@3c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&intc_cpu0 0xb &intc_cpu0 0x9 &intc_cpu1 0xb &intc_cpu1 0x9>;
+			reg = <0 0x3c000000 0 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <7>;
+			riscv,ndev = <64>;
+		};
+
+		uart0: serial@310B0000 {
+			compatible = "ns16550a";
+			reg = <0x0 0x310B0000 0x0 0x10000>;
+			reg-shift = <0x02>;
+			reg-io-width = <0x04>;
+			interrupt-parent = <&PLIC>;
+			interrupts = <40>;
+			clock-frequency = <50000000>;
+			status = "okay";
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory: memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+};
