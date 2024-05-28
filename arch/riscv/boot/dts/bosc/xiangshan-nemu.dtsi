@@ -72,7 +72,7 @@
 			clock-frequency-mhz = <500>;
 		};
 
-		L14: serial@60000000 {
+		uart0: serial@60000000 {
 			compatible = "xlnx,xps-uartlite-1.00.a";
 			interrupt-parent = <&PLIC>;
 			interrupts = <3>;

@@ -11,9 +11,13 @@
 	compatible = "bosc,nanhu-v3-dev", "bosc,nanhu-v3";
 	model = "bosc,nanhu-v3";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "root=/dev/nvme0n1p2 rootfstype=ext4 rw rootwait console=ttyS0,9600n8 earlycon noinitrd";
-		stdout-path = "/soc/serial@310B0000";
+		bootargs = "root=/dev/nvme0n1p2 rootfstype=ext4 rw rootwait console=ttyS0 earlycon noinitrd";
+		stdout-path = "serial0:9600n8";
 	};
 };
 

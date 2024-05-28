@@ -9,6 +9,10 @@
 	compatible = "bosc,kmh-v1-dev";
 	model = "bosc,kmh-v1";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	L19: cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -203,7 +207,7 @@
 			};
 		};
 
-		serial@310B0000 {
+		uart0: serial@310B0000 {
 			compatible = "ns16550a";
 			reg = <0x0 0x310B0000 0x0 0x10000>;
 			reg-shift = <0x02>;
@@ -297,8 +301,8 @@
 	};
 
 	chosen {
-		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
-		stdout-path = "/soc/serial@310B0000";
+		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0 earlycon noinitrd";
+		stdout-path = "serial0:115200n8";
 	};
 
 	L11: memory@100000000 {
