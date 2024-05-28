@@ -11,9 +11,13 @@
 	compatible = "bosc,nanhu-v3-dev-1core", "bosc,nanhu-v3";
 	model = "bosc,nanhu-v3-1core";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
-		stdout-path = "/soc/serial@310B0000";
+		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0 earlycon noinitrd";
+		stdout-path = "serial0:115200n8";
 	};
 };
 
@@ -21,6 +25,6 @@
 	status = "okay";
 };
 
-&serial {
+&uart0 {
 	clock-frequency = <50000000>;
 };

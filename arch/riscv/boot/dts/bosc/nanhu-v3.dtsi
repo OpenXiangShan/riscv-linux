@@ -221,7 +221,7 @@
 			};
 		};
 
-		serial: serial@310B0000 {
+		uart0: serial@310B0000 {
 			compatible = "ns16550a";
 			reg = <0x0 0x310B0000 0x0 0x10000>;
 			reg-shift = <0x02>;
