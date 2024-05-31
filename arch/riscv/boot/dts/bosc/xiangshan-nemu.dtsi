@@ -1,0 +1,25 @@
+/include/ "xiangshan-base.dtsi"
+
+&cpus {
+	timebase-frequency = <1000000>; // CLINT timer at 1MHz
+	/*
+	  Note: It may change the frequency of timer interrupt when doing
+	  multicore performance simulation.
+	 */
+};
+
+/ {
+	compatible = "xiangshan,nemu";
+	model = "XiangShan NEMU";
+};
+
+&soc {
+	uart0: serial@40600000 {
+		compatible = "xlnx,xps-uartlite-1.00.a";
+		interrupts = <3>;
+		current-speed = <115200>;
+		reg = <0x0 0x40600000 0x0 0x1000>;
+		xlnx,data-bits = <8>;
+		xlnx,use-parity = <0>;
+	};
+};

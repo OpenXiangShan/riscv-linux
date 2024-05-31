@@ -1,0 +1,168 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "xiangshan,generic";
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus: cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <1000000>; // CLINT timer at 1MHz by default
+		cpu0: cpu@0 {
+			compatible = "xiangshan,kunminghu", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			reg = <0>;
+			riscv,isa = "rv64imafdcvh_zicond_zba_zbb_zbc_zbs_zk_zvbb";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "h", "zicntr",
+					       "zicond", "zicsr", "zifencei", "zihpm", "zba", "zbb",
+					       "zbc", "zbs", "zk", "zvbb";
+			tlb-split;
+			status = "okay";
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu1: cpu@1 {
+			compatible = "xiangshan,kunminghu", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			reg = <1>;
+			riscv,isa = "rv64imafdcvh_zicond_zba_zbb_zbc_zbs_zk_zvbb";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "h", "zicntr",
+					       "zicond", "zicsr", "zifencei", "zihpm", "zba", "zbb",
+					       "zbc", "zbs", "zk", "zvbb";
+			tlb-split;
+			status = "disabled";
+
+			cpu1_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+		cpu2: cpu@2 {
+			compatible = "xiangshan,kunminghu", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			reg = <2>;
+			riscv,isa = "rv64imafdcvh_zicond_zba_zbb_zbc_zbs_zk_zvbb";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "h", "zicntr",
+					       "zicond", "zicsr", "zifencei", "zihpm", "zba", "zbb",
+					       "zbc", "zbs", "zk", "zvbb";
+			tlb-split;
+			status = "disabled";
+
+			cpu2_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu3: cpu@3 {
+			compatible = "xiangshan,kunminghu", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			reg = <3>;
+			riscv,isa = "rv64imafdcvh_zicond_zba_zbb_zbc_zbs_zk_zvbb";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v", "h", "zicntr",
+					       "zicond", "zicsr", "zifencei", "zihpm", "zba", "zbb",
+					       "zbc", "zbs", "zk", "zvbb";
+			tlb-split;
+			status = "disabled";
+			cpu3_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+
+	soc: soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		interrupt-parent = <&plic>;
+		ranges;
+
+		clint: clint@38000000 {
+			compatible = "sifive,clint0", "riscv,clint0";
+			interrupts-extended = <&cpu0_intc 3>, <&cpu0_intc 7>,
+					      <&cpu1_intc 3>, <&cpu1_intc 7>,
+					      <&cpu2_intc 3>, <&cpu2_intc 7>,
+					      <&cpu3_intc 3>, <&cpu3_intc 7>;
+			reg = <0x0 0x38000000 0x0 0x10000>;
+		};
+
+		plic: interrupt-controller@3c000000 {
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			compatible = "sifive,plic-1.0.0", "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>,
+					      <&cpu1_intc 11>, <&cpu1_intc 9>,
+					      <&cpu2_intc 11>, <&cpu2_intc 9>,
+					      <&cpu3_intc 11>, <&cpu3_intc 9>;
+			reg = <0 0x3c000000 0 0x4000000>;
+			riscv,ndev = <64>;
+		};
+	};
+};

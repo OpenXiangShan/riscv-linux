@@ -1,0 +1,19 @@
+/include/ "xiangshan-nemu.dtsi"
+
+/ {
+	compatible = "xiangshan,nemu";
+	model = "XiangShan NEMU";
+
+	chosen {
+		bootargs = "console=hvc0 earlycon=sbi";
+	};
+};
+
+&soc {
+	sdhci: mmc@40002000 {
+		compatible = "nemu-sdhost";
+		reg = <0x0 0x40002000 0x0 0x1000>;
+		no-sd;
+		no-sdio;
+	};
+};
