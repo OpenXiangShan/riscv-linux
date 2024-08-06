@@ -21,10 +21,10 @@
 		cpu@0 {
 			compatible = "bosc,xiangshan", "riscv";
 			device_type = "cpu";
-			riscv,isa = "rv64imafdcvh";
+			riscv,isa = "rv64imafdcvh_sstc_sscofpmf";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "v", "h";
+					       "v", "h", "sstc", "sscofpmf";
 			reg = <0>;
 
 			d-cache-block-size = <64>;
