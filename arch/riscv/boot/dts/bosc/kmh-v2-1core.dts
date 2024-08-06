@@ -6,8 +6,8 @@
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
-	compatible = "bosc,xiangshan";
-	model = "kunminghu_tilelink";
+	compatible = "bosc,kmh-v2-dev";
+	model = "bosc,kmh-v2-1core";
 
 	aliases {
 		serial0 = &uart0;
@@ -19,7 +19,7 @@
 		timebase-frequency = <1000000>; /* 1Mhz */
 
 		cpu@0 {
-			compatible = "bosc,xiangshan", "riscv";
+			compatible = "bosc,kmh-v2", "riscv";
 			device_type = "cpu";
 			riscv,isa = "rv64imafdcvh_sstc_sscofpmf";
 			riscv,isa-base = "rv64i";
@@ -61,7 +61,7 @@
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
-		compatible = "simple-bus";
+		compatible = "bosc,kmh-v2-soc", "simple-bus";
 		ranges;
 
 		clint: timer@38000000 {
