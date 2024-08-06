@@ -16,7 +16,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		timebase-frequency = <500000>; /* 50Khz */
+		timebase-frequency = <1000000>; /* 1Mhz */
 
 		cpu@0 {
 			compatible = "bosc,xiangshan", "riscv";
@@ -41,7 +41,6 @@
 
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&l2_cache>;
-			timebase-frequency = <500000>; /* 50Khz */
 
 			intc_cpu0: interrupt-controller {
 				compatible = "riscv,cpu-intc";
