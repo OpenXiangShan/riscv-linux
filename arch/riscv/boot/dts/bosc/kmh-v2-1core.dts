@@ -85,8 +85,8 @@
 			reg = <0x0 0x310B0000 0x0 0x10000>;
 			reg-shift = <0x02>;
 			reg-io-width = <0x04>;
-//			interrupt-parent = <&plic>;
-//			interrupts = <40>;
+			interrupt-parent = <&plic>;
+			interrupts = <40>;
 			clock-frequency = <50000000>;
 		};
 	};
