@@ -16,8 +16,7 @@
 	};
 
 	chosen {
-		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0 earlycon noinitrd";
-		stdout-path = "serial0:115200n8";
+		bootargs = "root=/dev/sda2 rootfstype=ext4 rw rootwait console=ttyS0,115200n8 earlycon noinitrd";
 	};
 };
 
