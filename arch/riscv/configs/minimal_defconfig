@@ -5,7 +5,7 @@ CONFIG_SOC_XIANGSHAN=y
 # CONFIG_CROSS_MEMORY_ATTACH is not set
 
 CONFIG_BLK_DEV_INITRD=y
-CONFIG_INITRAMFS_SOURCE="${RISCV_ROOTFS_HOME}/rootfsimg/initramfs-emu.txt"
+CONFIG_INITRAMFS_SOURCE="rootfs_nopasswd.cpio"
 
 # CONFIG_RD_GZIP is not set
 # CONFIG_RD_BZIP2 is not set
