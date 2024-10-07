@@ -58,7 +58,7 @@ static int imsic_test_platform_probe(struct platform_device *pdev)
 					   imsic_test_write_msi_msg);
 	if (ret) {
 		printk("%s -- alloc msi irqs failed... ret:%d\n", __FUNCTION__,
-		       __LINE__);
+		       ret);
 		return ret;
 	}
 
