@@ -57,6 +57,12 @@ static inline void imsic_csr_clear(unsigned long reg, unsigned long val)
 
 struct imsic_priv *imsic;
 
+struct irq_domain *imsic_get_irqdomain(void)
+{
+	return imsic->base_domain;
+}
+EXPORT_SYMBOL_GPL(imsic_get_irqdomain);
+
 const struct imsic_global_config *imsic_get_global_config(void)
 {
 	return imsic ? &imsic->global : NULL;

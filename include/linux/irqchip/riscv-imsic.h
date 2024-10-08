@@ -73,6 +73,7 @@ struct imsic_global_config {
 
 #ifdef CONFIG_RISCV_IMSIC
 
+struct irq_domain *imsic_get_irqdomain(void);
 const struct imsic_global_config *imsic_get_global_config(void);
 
 #else
