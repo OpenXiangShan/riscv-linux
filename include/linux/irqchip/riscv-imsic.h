@@ -75,8 +75,14 @@ struct imsic_global_config {
 
 struct irq_domain *imsic_get_irqdomain(void);
 const struct imsic_global_config *imsic_get_global_config(void);
+const struct imsic_local_config *imsic_get_local_config(unsigned int cpu);
 
 #else
+
+static inline const struct imsic_local_config *imsic_get_local_config(unsigned int cpu)
+{
+	return NULL;
+}
 
 static inline const struct imsic_global_config *imsic_get_global_config(void)
 {

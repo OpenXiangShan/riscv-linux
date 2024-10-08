@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_aia_imsic.h>
+#include <linux/irqchip/riscv-imsic.h>
 
 struct aia_hgei_control {
 	raw_spinlock_t lock;
@@ -394,6 +395,7 @@ int kvm_riscv_aia_alloc_hgei(int cpu, struct kvm_vcpu *owner,
 {
 	int ret = -ENOENT;
 	unsigned long flags;
+	const struct imsic_local_config *l;
 	struct aia_hgei_control *hgctrl = per_cpu_ptr(&aia_hgei, cpu);
 
 	if (!kvm_riscv_aia_available() || !hgctrl)
@@ -410,10 +412,11 @@ int kvm_riscv_aia_alloc_hgei(int cpu, struct kvm_vcpu *owner,
 	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
 
 	/* TODO: To be updated later by AIA IMSIC HW guest file support */
+	l = imsic_get_local_config(cpu);
 	if (hgei_va)
-		*hgei_va = NULL;
+		*hgei_va = l->msi_va + (ret * IMSIC_MMIO_PAGE_SZ);
 	if (hgei_pa)
-		*hgei_pa = 0;
+		*hgei_pa = l->msi_pa + (ret * IMSIC_MMIO_PAGE_SZ);
 
 	return ret;
 }
@@ -605,6 +608,7 @@ void kvm_riscv_aia_disable(void)
 int kvm_riscv_aia_init(void)
 {
 	int rc;
+	const struct imsic_global_config *g;
 
 	if (!riscv_isa_extension_available(NULL, SxAIA))
 		return -ENODEV;
@@ -622,7 +626,7 @@ int kvm_riscv_aia_init(void)
 	 *
 	 * TODO: To be updated later by AIA IMSIC HW guest file support
 	 */
-	kvm_riscv_aia_nr_hgei = 0;
+	//kvm_riscv_aia_nr_hgei = 0;
 
 	/*
 	 * Find number of guest MSI IDs
@@ -630,6 +634,10 @@ int kvm_riscv_aia_init(void)
 	 * TODO: To be updated later by AIA IMSIC HW guest file support
 	 */
 	kvm_riscv_aia_max_ids = IMSIC_MAX_ID;
+	if (kvm_riscv_aia_nr_hgei) {
+		g = imsic_get_global_config();
+		kvm_riscv_aia_max_ids =  g->nr_guest_ids + 1;
+	}
 
 	/* Initialize guest external interrupt line management */
 	rc = aia_hgei_init();

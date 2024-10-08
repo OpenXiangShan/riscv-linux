@@ -360,7 +360,7 @@ int kvm_riscv_gstage_ioremap(struct kvm *kvm, gpa_t gpa,
 	pfn = __phys_to_pfn(hpa);
 
 	for (addr = gpa; addr < end; addr += PAGE_SIZE) {
-		pte = pfn_pte(pfn, PAGE_KERNEL_IO);
+		pte = pfn_pte(pfn, PAGE_KERNEL_IO_GSTAGE);
 
 		if (!writable)
 			pte = pte_wrprotect(pte);

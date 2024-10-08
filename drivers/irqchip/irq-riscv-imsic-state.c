@@ -63,6 +63,14 @@ struct irq_domain *imsic_get_irqdomain(void)
 }
 EXPORT_SYMBOL_GPL(imsic_get_irqdomain);
 
+const struct imsic_local_config *imsic_get_local_config(unsigned int cpu)
+{
+	struct imsic_local_config *l = per_cpu_ptr(imsic->global.local, cpu);
+
+	return l;
+}
+EXPORT_SYMBOL_GPL(imsic_get_local_config);
+
 const struct imsic_global_config *imsic_get_global_config(void)
 {
 	return imsic ? &imsic->global : NULL;

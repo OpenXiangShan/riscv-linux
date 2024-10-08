@@ -203,7 +203,8 @@ extern struct pt_alloc_ops pt_ops __initdata;
 #define PAGE_TABLE		__pgprot(_PAGE_TABLE)
 
 #define _PAGE_IOREMAP	((_PAGE_KERNEL & ~_PAGE_MTMASK) | _PAGE_IO)
-#define PAGE_KERNEL_IO		__pgprot(_PAGE_IOREMAP)
+#define PAGE_KERNEL_IO          __pgprot(_PAGE_IOREMAP)
+#define PAGE_KERNEL_IO_GSTAGE   __pgprot(_PAGE_IOREMAP | _PAGE_USER)
 
 extern pgd_t swapper_pg_dir[];
 extern pgd_t trampoline_pg_dir[];
