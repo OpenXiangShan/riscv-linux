@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/mod_devicetable.h>
+#include <linux/irqchip/riscv-imsic.h>
 
 #define IMSIC_TEST_IRQ_NUM 3
 
@@ -52,6 +53,8 @@ static irqreturn_t imsic_irq_handler(int irq, void *data)
 static int imsic_test_platform_probe(struct platform_device *pdev)
 {
 	int ret = 0, i, virq;
+
+	pdev->dev.msi.domain = imsic_get_irqdomain();
 
 	ret =
 	    platform_device_msi_init_and_alloc_irqs(&pdev->dev, IMSIC_TEST_IRQ_NUM,
