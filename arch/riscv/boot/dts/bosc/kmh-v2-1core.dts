@@ -90,6 +90,11 @@
 			compatible = "riscv,imsics";
 		};
 
+		imsic_test@0 {
+			compatible = "imsic,test";
+			msi-parent = <&imsics_s>;
+		};
+
 		aplic_s: aplic@31120000 {
 			riscv,num-sources = <0x60>;
 			reg = <0x0 0x31120000 0x0 0x8000>;
