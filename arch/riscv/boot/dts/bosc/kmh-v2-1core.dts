@@ -21,10 +21,10 @@
 		cpu@0 {
 			compatible = "bosc,kmh-v2", "riscv";
 			device_type = "cpu";
-			riscv,isa = "rv64imafdcvh_sstc_sscofpmf";
+			riscv,isa = "rv64imafdcvh_sstc_sscofpmf_smaia_ssaia";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "v", "h", "sstc", "sscofpmf";
+					       "v", "h", "sstc", "sscofpmf","smaia","ssaia";
 			reg = <0>;
 
 			d-cache-block-size = <64>;
@@ -70,14 +70,44 @@
 			interrupts-extended = <&intc_cpu0 3>, <&intc_cpu0 7>;
 		};
 
-		plic: interrupt-controller@3c000000 {
-			compatible = "riscv,plic0";
-			reg = <0 0x3c000000 0 0x1000000>;
-			interrupts-extended = <&intc_cpu0 11>, <&intc_cpu0 9>;
+		imsics_m: imsics@3a800000 {
+			riscv,num-ids = <0xff>;
+			reg = <0x0 0x3a800000 0x0 0x1000>;
+			interrupts-extended = <&intc_cpu0 0x0b>;
+			msi-controller;
 			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <1>;
-			riscv,ndev = <64>;
+			#interrupt-cells = <0x00>;
+			compatible = "riscv,imsics";
+		};
+
+		imsics_s: imsics@3b000000 {
+			riscv,num-ids = <0xff>;
+			reg = <0x0 0x3b000000 0x0 0x6000>;
+			interrupts-extended = <&intc_cpu0 0x09>;
+			msi-controller;
+			interrupt-controller;
+			#interrupt-cells = <0x00>;
+			compatible = "riscv,imsics";
+		};
+
+		aplic_s: aplic@31120000 {
+			riscv,num-sources = <0x60>;
+			reg = <0x0 0x31120000 0x0 0x8000>;
+			msi-parent = <&imsics_s>;
+			interrupt-controller;
+			#interrupt-cells = <0x02>;
+			compatible = "riscv,aplic";
+		};
+
+		aplic_m: aplic@31100000 {
+			riscv,delegate = <&aplic_s 0x01 0x60>;
+			riscv,children = <&aplic_s>;
+			riscv,num-sources = <0x60>;
+			reg = <0x0 0x31100000 0x0 0x8000>;
+			msi-parent = <&imsics_m>;
+			interrupt-controller;
+			#interrupt-cells = <0x02>;
+			compatible = "riscv,aplic";
 		};
 
 		uart0: serial@310B0000 {
@@ -85,10 +115,11 @@
 			reg = <0x0 0x310B0000 0x0 0x10000>;
 			reg-shift = <0x02>;
 			reg-io-width = <0x04>;
-			interrupt-parent = <&plic>;
-			interrupts = <40>;
+			interrupt-parent = <&aplic_s>;
+			interrupts = <10 0x04>;
 			clock-frequency = <50000000>;
 		};
+
 	};
 
 	chosen {
