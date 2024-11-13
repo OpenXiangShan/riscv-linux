@@ -2,6 +2,7 @@
 /* Copyright (c) 2023-2024 BOSC */
 
 /dts-v1/;
+#include "kmh-v2.dtsi"
 
 / {
 	#address-cells = <2>;
@@ -13,127 +14,12 @@
 		serial0 = &uart0;
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		timebase-frequency = <1000000>; /* 1Mhz */
-
-		cpu@0 {
-			compatible = "bosc,kmh-v2", "riscv";
-			device_type = "cpu";
-			riscv,isa = "rv64imafdcvh_sstc_sscofpmf_smaia_ssaia";
-			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "v", "h", "sstc", "sscofpmf","smaia","ssaia";
-			reg = <0>;
-
-			d-cache-block-size = <64>;
-			d-cache-sets = <64>;
-			d-cache-size = <16384>;
-			d-tlb-sets = <1>;
-			d-tlb-size = <32>;
-
-			i-cache-block-size = <64>;
-			i-cache-sets = <64>;
-			i-cache-size = <16384>;
-			i-tlb-sets = <1>;
-			i-tlb-size = <32>;
-
-			mmu-type = "riscv,sv39";
-			next-level-cache = <&l2_cache>;
-
-			intc_cpu0: interrupt-controller {
-				compatible = "riscv,cpu-intc";
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-		};
-
-		l2_cache: l2-cache {
-			compatible = "cache";
-			cache-block-size = <64>;
-			cache-level = <2>;
-			cache-size = <1048576>; /* 1MiB */
-			cache-unified;
-		};
-	};
-
-	soc {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		compatible = "bosc,kmh-v2-soc", "simple-bus";
-		ranges;
-
-		clint: timer@38000000 {
-			compatible = "riscv,clint0";
-			reg = <0x0 0x38000000 0x0 0x10000>;
-			interrupts-extended = <&intc_cpu0 3>, <&intc_cpu0 7>;
-		};
-
-		imsics_m: imsics@3a800000 {
-			riscv,num-ids = <0xff>;
-			reg = <0x0 0x3a800000 0x0 0x1000>;
-			interrupts-extended = <&intc_cpu0 0x0b>;
-			msi-controller;
-			interrupt-controller;
-			#interrupt-cells = <0x00>;
-			compatible = "riscv,imsics";
-		};
-
-		imsics_s: imsics@3b000000 {
-			riscv,num-ids = <0xff>;
-			reg = <0x0 0x3b000000 0x0 0x6000>;
-			interrupts-extended = <&intc_cpu0 0x09>;
-			msi-controller;
-			interrupt-controller;
-			#interrupt-cells = <0x00>;
-			compatible = "riscv,imsics";
-		};
-
-		imsic_test@0 {
-			compatible = "imsic,test";
-			msi-parent = <&imsics_s>;
-		};
-
-		aplic_s: aplic@31120000 {
-			riscv,num-sources = <0x60>;
-			reg = <0x0 0x31120000 0x0 0x8000>;
-			msi-parent = <&imsics_s>;
-			interrupt-controller;
-			#interrupt-cells = <0x02>;
-			compatible = "riscv,aplic";
-		};
-
-		aplic_m: aplic@31100000 {
-			riscv,delegate = <&aplic_s 0x01 0x60>;
-			riscv,children = <&aplic_s>;
-			riscv,num-sources = <0x60>;
-			reg = <0x0 0x31100000 0x0 0x8000>;
-			msi-parent = <&imsics_m>;
-			interrupt-controller;
-			#interrupt-cells = <0x02>;
-			compatible = "riscv,aplic";
-		};
-
-		uart0: serial@310B0000 {
-			compatible = "ns16550a";
-			reg = <0x0 0x310B0000 0x0 0x10000>;
-			reg-shift = <0x02>;
-			reg-io-width = <0x04>;
-			interrupt-parent = <&aplic_s>;
-			interrupts = <10 0x04>;
-			clock-frequency = <50000000>;
-		};
-
-	};
-
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon";
 		stdout-path = "serial0:115200n8";
 	};
+};
 
-	memory: memory@80000000 {
-		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x80000000>;
-	};
+&cpu0 {
+	status = "okay";
 };
