@@ -15,7 +15,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon";
+		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2";
 		stdout-path = "serial0:115200n8";
 	};
 };
