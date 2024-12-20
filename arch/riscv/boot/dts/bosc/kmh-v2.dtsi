@@ -211,7 +211,17 @@
 			interrupts = <10 0x04>;
 			clock-frequency = <50000000>;
 			current-speed = <115200>;
-                        status = "okay";
+			status = "disable";
+		};
+
+		uart1: serial@40600000 {
+			compatible = "xlnx,xps-uartlite-1.00.a";
+			current-speed = <115200>;
+			reg = <0x0 0x40600000 0x0 0x1000>;
+			reg-names = "control";
+			interrupt-parent = <&aplic_s>;
+			interrupts = <59>;
+			status = "disable";
 		};
 
 		xdma_clkc: misc_clk_0 {
