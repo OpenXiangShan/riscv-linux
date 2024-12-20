@@ -10,6 +10,7 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	nemu-platform.dtb \
 	nemu-platform-initramfs.dtb \
 	emu.dtb \
-	kmh-v2-1core.dtb
+	kmh-v2-1core.dtb \
+	kmh-v2-1core-uartlite.dtb
 
 obj-$(CONFIG_BUILTIN_DTB) += $(addsuffix .o, $(dtb-y))

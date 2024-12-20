@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+#include "kmh-v2.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,kmh-v2-dev";
+	model = "bosc,kmh-v2-1core";
+
+	chosen {
+		bootargs = "console=hvc0 earlycon=sbi loglevel=8 drm.debug=0x2";
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
