@@ -6,6 +6,7 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v1.dtb \
 	nanhu-v2.dtb \
 	nanhu-v3.dtb \
+	nanhu-v3a.dtb \
 	nanhu-v3-1core.dtb \
 	nemu-platform.dtb \
 	nemu-platform-initramfs.dtb \
