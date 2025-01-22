@@ -159,7 +159,7 @@
 
 		imsics_m: imsics@3a800000 {
 			riscv,num-ids = <0xff>;
-			reg = <0x0 0x3a800000 0x0 0x4000>;
+			reg = <0x0 0x3a800000 0x0 0x10000>;
 			interrupts-extended = <&intc_cpu0 0x0b>,<&intc_cpu1 0x0b>,<&intc_cpu2 0x0b>,<&intc_cpu3 0x0b>;
 			msi-controller;
 			interrupt-controller;
@@ -169,12 +169,13 @@
 
 		imsics_s: imsics@3b000000 {
 			riscv,num-ids = <0xff>;
-			reg = <0x0 0x3b000000 0x0 0x4000>;
+			reg = <0x0 0x3b000000 0x0 0x80000>;
 			interrupts-extended = <&intc_cpu0 0x09>,<&intc_cpu1 0x09>,<&intc_cpu2 0x09>,<&intc_cpu3 0x09>;
 			msi-controller;
 			interrupt-controller;
 			#interrupt-cells = <0x00>;
 			compatible = "riscv,imsics";
+			riscv,guest-index-bits = <0x03>;
 		};
 
 		imsic_test@0 {
