@@ -63,31 +63,3 @@
 &cpu8 {
 	status = "okay";
 };
-
-&cpu9 {
-	status = "okay";
-};
-
-&cpu10 {
-	status = "okay";
-};
-
-&cpu11 {
-	status = "okay";
-};
-
-&cpu12 {
-	status = "okay";
-};
-
-&cpu13 {
-	status = "okay";
-};
-
-&cpu14 {
-	status = "okay";
-};
-
-&cpu15 {
-	status = "okay";
-};

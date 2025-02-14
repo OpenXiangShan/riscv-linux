@@ -24,10 +24,6 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
 &cpu0 {
 	status = "okay";
 };
@@ -36,58 +32,6 @@
 	status = "okay";
 };
 
-&cpu2 {
-	status = "okay";
-};
-
-&cpu3 {
-	status = "okay";
-};
-
-&cpu4 {
-	status = "okay";
-};
-
-&cpu5 {
-	status = "okay";
-};
-
-&cpu6 {
-	status = "okay";
-};
-
-&cpu7 {
-	status = "okay";
-};
-
-&cpu8 {
-	status = "okay";
-};
-
-&cpu9 {
-	status = "okay";
-};
-
-&cpu10 {
-	status = "okay";
-};
-
-&cpu11 {
-	status = "okay";
-};
-
-&cpu12 {
-	status = "okay";
-};
-
-&cpu13 {
-	status = "okay";
-};
-
-&cpu14 {
-	status = "okay";
-};
-
-&cpu15 {
+&uart0 {
 	status = "okay";
 };
