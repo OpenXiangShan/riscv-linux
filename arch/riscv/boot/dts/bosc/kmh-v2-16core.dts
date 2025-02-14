@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+#include "kmh-v2.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,kmh-v2-dev";
+	model = "bosc,kmh-v2-16core";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2 amdgpu.cik=1 amdgpu.si=1 amdgpu.dpm=0 pcie_aspm=off pcie_port_pm=off amdgpu.vm_update_mode=3 root=/dev/sda1 rw ";
+		stdout-path = "serial0:115200n8";
+		opensbi-config {
+		    compatible = "opensbi,config";
+		    cold-boot-harts = <&cpu0>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&cpu1 {
+	status = "okay";
+};
+
+&cpu2 {
+	status = "okay";
+};
+
+&cpu3 {
+	status = "okay";
+};
+
+&cpu4 {
+	status = "okay";
+};
+
+&cpu5 {
+	status = "okay";
+};
+
+&cpu6 {
+	status = "okay";
+};
+
+&cpu7 {
+	status = "okay";
+};
+
+&cpu8 {
+	status = "okay";
+};
+
+&cpu9 {
+	status = "okay";
+};
+
+&cpu10 {
+	status = "okay";
+};
+
+&cpu11 {
+	status = "okay";
+};
+
+&cpu12 {
+	status = "okay";
+};
+
+&cpu13 {
+	status = "okay";
+};
+
+&cpu14 {
+	status = "okay";
+};
+
+&cpu15 {
+	status = "okay";
+};
