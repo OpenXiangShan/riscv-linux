@@ -597,40 +597,6 @@
 			status = "disable";
 		};
 
-		xdma_clkc: misc_clk_0 {
-			#clock-cells = <0>;
-			clock-frequency = <10000000>;
-			compatible = "fixed-clock";
-		};
-
-		xdma_0: pcie@32000000 {
-			#address-cells = <3>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			clock-names = "sys_clk", "sys_clk_gt";
-			clocks = <&xdma_clkc>, <&xdma_clkc>;
-			compatible = "xlnx,xdma-host-3.00", "xlnx,axi-pcie-host-1.00.a";
-			device_type = "pci";
-			interrupt-map =	<0x0 0 0 1 &pcie_intc_0 1>,
-							<0x0 0 0 2 &pcie_intc_0 2>,
-							<0x0 0 0 3 &pcie_intc_0 3>,
-							<0x0 0 0 4 &pcie_intc_0 4>;
-			interrupt-map-mask = <0x0 0 0 7>;
-			interrupt-names = "misc", "msi0", "msi1";
-			interrupt-parent = <&aplic_s>;
-			interrupts = <14 IRQ_TYPE_EDGE_RISING>, <13 IRQ_TYPE_EDGE_RISING>, <12 IRQ_TYPE_EDGE_RISING>;
-			// msi-parent = <&imsics_s>;
-			bus-range = <0x00 0xff>;
-			dma-coherent;
-			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0x20000000>;
-			reg = <0x00000000 0x32000000  0x0 0x1000000>;
-			status = "disable";
-			pcie_intc_0: interrupt-controller {
-				#address-cells = <0>;
-				#interrupt-cells = <1>;
-				interrupt-controller ;
-			};
-		};
 		/* for qemu */
 		virt_rc: pci@32000000 {
 			#size-cells = <0x02>;
