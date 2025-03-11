@@ -59,7 +59,3 @@
 &cpu7 {
 	status = "okay";
 };
-
-&cpu8 {
-	status = "okay";
-};
