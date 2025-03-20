@@ -90,14 +90,15 @@ static ssize_t imsic_test_write(struct file *file, const char __user * buf,
 				size_t count, loff_t * ppos)
 {
 	uint8_t tmp_buf[128];
-	int index = 0;
+	int index;
+	char *p = (char *) tmp_buf;
 
 	if (copy_from_user(tmp_buf, buf, count)) {
 		printk("%s -- copy from user failed\n", __FUNCTION__);
 		return -1;
 	}
 
-	index = tmp_buf[0] - '0';
+	index = simple_strtoul(p, &p, 10);
 
 	if (index >= IMSIC_TEST_IRQ_NUM) {
 		printk("invalid index: %d\n", index);
