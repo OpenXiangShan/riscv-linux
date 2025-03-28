@@ -13,10 +13,12 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	emu.dtb \
 	kmh-v2-1core.dtb \
 	kmh-v2-2core.dtb \
+	kmh-v2-4core.dtb \
 	kmh-v2-8core.dtb \
 	kmh-v2-16core.dtb \
 	kmh-v2-1core-uartlite.dtb \
 	kmh-v2-2core-uartlite.dtb \
+	kmh-v2-4core-uartlite.dtb \
 	kmh-v2-8core-uartlite.dtb \
 	kmh-v2-16core-uartlite.dtb \
 	nanhu-v5-1core.dtb
