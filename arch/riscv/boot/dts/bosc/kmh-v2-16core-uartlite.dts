@@ -8,7 +8,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	compatible = "bosc,kmh-v2-dev";
-	model = "bosc,kmh-v2-16core";
+	model = "bosc,kmh-v2-16core-uartlite";
 
 	chosen {
 		bootargs = "console=hvc0 earlycon=sbi loglevel=8 drm.debug=0x2";
