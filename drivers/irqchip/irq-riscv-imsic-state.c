@@ -59,6 +59,9 @@ struct imsic_priv *imsic;
 
 struct irq_domain *imsic_get_irqdomain(void)
 {
+	if (!imsic)
+		return NULL;
+
 	return imsic->base_domain;
 }
 EXPORT_SYMBOL_GPL(imsic_get_irqdomain);
