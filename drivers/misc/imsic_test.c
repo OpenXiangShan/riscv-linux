@@ -425,6 +425,7 @@ late_initcall(imsic_test_init);
 
 static const struct of_device_id imsic_platform_match[] = {
 	{.compatible = "imsic,test" },
+	{}
 };
 
 static struct platform_driver imsic_test_platform_driver = {
