@@ -21,7 +21,7 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc", "smaia","ssaia";
+                                              "sstc";
 
                         status = "disabled";
 
