@@ -233,6 +233,10 @@
 		};
 	};
 
+	chosen {
+		rng-seed = <0xc8518d39 0x6bde432f 0x4d998c79 0xaa192096 0xdbcf36f3 0x532f3ab3 0x965240fe 0xac379c0e>;
+	};
+
 	memory: memory@100000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
