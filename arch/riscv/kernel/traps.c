@@ -33,6 +33,8 @@
 #include <asm/vector.h>
 #include <asm/irq_stack.h>
 
+#include <linux/pgtable.h>
+
 int show_unhandled_signals = 1;
 
 static DEFINE_SPINLOCK(die_lock);
@@ -111,6 +113,64 @@ void die(struct pt_regs *regs, const char *str)
 		make_task_dead(SIGSEGV);
 }
 
+#ifdef CONFIG_MY_PT_DUMP_DEBUG
+static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
+{
+	struct mm_struct *mm = tsk->mm;
+	struct vm_area_struct *vma;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep;
+	spinlock_t *ptl;
+
+	vma = find_vma(mm, address);
+	if (!vma) {
+		printk("####### %s -- Do not find vma\n", __FUNCTION__);
+	}
+	else {
+		printk("####### %s -- addr:0x%lx, vm_start:0x%lx, vm_end:0x%lx\n",
+			__FUNCTION__, address, vma->vm_start, vma->vm_end);
+	}
+
+	printk("============= %s =============\n", __FUNCTION__);
+
+	pgd = pgd_offset(mm, address);
+	printk("pgdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pgd, page_to_phys(virt_to_page(pgd)), pgd_val(*pgd));
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		return;
+
+	if (pgtable_l5_enabled) {
+		p4d = p4d_offset(pgd, address);
+		printk("p4dp -- 0x%px(pa: 0x%llx) : 0x%lx\n", p4d, page_to_phys(virt_to_page(p4d)), p4d_val(*p4d));
+		if (p4d_none(*p4d) || p4d_bad(*p4d))
+			return;
+	}
+	else
+		p4d = (p4d_t *)pgd;
+
+	if (pgtable_l4_enabled) {
+		pud = pud_offset(p4d, address);
+		printk("pudp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pud, page_to_phys(virt_to_page(pud)), pud_val(*pud));
+		if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+			return;
+
+	}
+	else
+		pud = (pud_t *)p4d;
+
+	pmd = pmd_offset(pud, address);
+	printk("pmdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pmd, page_to_phys(virt_to_page(pmd)), pmd_val(*pmd));
+
+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+	if (!ptep)
+		return;
+	printk("ptep -- 0x%px(pa: 0x%llx) : 0x%lx\n", ptep, page_to_phys(virt_to_page(pmd)), pte_val(*ptep));
+	pte_unmap_unlock(ptep, ptl);
+}
+#endif
+
 void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 {
 	struct task_struct *tsk = current;
@@ -123,6 +183,10 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		pr_cont("\n");
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
+
+#ifdef CONFIG_MY_PT_DUMP_DEBUG
+		debug_dump_pt(tsk, addr);
+#endif
 	}
 
 	force_sig_fault(signo, code, (void __user *)addr);
