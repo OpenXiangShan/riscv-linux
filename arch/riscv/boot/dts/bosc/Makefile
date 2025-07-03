@@ -21,6 +21,7 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v2-4core-uartlite.dtb \
 	kmh-v2-8core-uartlite.dtb \
 	kmh-v2-16core-uartlite.dtb \
+	kmh-v2-nemu.dtb \
 	nanhu-v5-1core.dtb \
 	nanhu-v5-1core-uartlite.dtb
 
