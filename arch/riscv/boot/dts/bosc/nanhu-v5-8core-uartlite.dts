@@ -8,11 +8,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	compatible = "bosc,nanhu-v5-dev";
-	model = "bosc,nanhu-v5-1core-uartlite";
-
-	aliases {
-		serial0 = &uart0;
-	};
+	model = "bosc,nanhu-v5-8core-uartlite";
 
 	chosen {
 		bootargs = "console=hvc0 earlycon=sbi loglevel=8";
@@ -28,5 +24,33 @@
 };
 
 &cpu0 {
+	status = "okay";
+};
+
+&cpu1 {
+	status = "okay";
+};
+
+&cpu2 {
+	status = "okay";
+};
+
+&cpu3 {
+	status = "okay";
+};
+
+&cpu4 {
+	status = "okay";
+};
+
+&cpu5 {
+	status = "okay";
+};
+
+&cpu6 {
+	status = "okay";
+};
+
+&cpu7 {
 	status = "okay";
 };

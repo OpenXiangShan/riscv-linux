@@ -23,6 +23,14 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v2-16core-uartlite.dtb \
 	kmh-v2-nemu.dtb \
 	nanhu-v5-1core.dtb \
-	nanhu-v5-1core-uartlite.dtb
+	nanhu-v5-2core.dtb \
+	nanhu-v5-4core.dtb \
+	nanhu-v5-8core.dtb \
+	nanhu-v5-16core.dtb \
+	nanhu-v5-1core-uartlite.dtb \
+	nanhu-v5-2core-uartlite.dtb \
+	nanhu-v5-4core-uartlite.dtb \
+	nanhu-v5-8core-uartlite.dtb \
+	nanhu-v5-16core-uartlite.dtb
 
 obj-$(CONFIG_BUILTIN_DTB) += $(addsuffix .o, $(dtb-y))
