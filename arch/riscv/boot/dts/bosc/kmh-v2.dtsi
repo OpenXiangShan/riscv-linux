@@ -512,45 +512,11 @@
 		clint: timer@38000000 {
 			compatible = "riscv,clint0";
 			reg = <0x0 0x38000000 0x0 0x10000>;
-			interrupts-extended =
-				<&intc_cpu0 3>, <&intc_cpu0 7>,
-				<&intc_cpu1 3>, <&intc_cpu1 7>,
-				<&intc_cpu2 3>, <&intc_cpu2 7>,
-				<&intc_cpu3 3>, <&intc_cpu3 7>,
-				<&intc_cpu4 3>, <&intc_cpu4 7>,
-				<&intc_cpu5 3>, <&intc_cpu5 7>,
-				<&intc_cpu6 3>, <&intc_cpu6 7>,
-				<&intc_cpu7 3>, <&intc_cpu7 7>,
-				<&intc_cpu8 3>, <&intc_cpu8 7>,
-				<&intc_cpu9 3>, <&intc_cpu9 7>,
-				<&intc_cpu10 3>, <&intc_cpu10 7>,
-				<&intc_cpu11 3>, <&intc_cpu11 7>,
-				<&intc_cpu12 3>, <&intc_cpu12 7>,
-				<&intc_cpu13 3>, <&intc_cpu13 7>,
-				<&intc_cpu14 3>, <&intc_cpu14 7>,
-				<&intc_cpu15 3>, <&intc_cpu15 7>;
 		};
 
 		imsics_m: imsics@3a800000 {
 			riscv,num-ids = <0xff>;
 			reg = <0x0 0x3a800000 0x0 0x10000>;
-			interrupts-extended =
-				<&intc_cpu0 0x0b>,
-				<&intc_cpu1 0x0b>,
-				<&intc_cpu2 0x0b>,
-				<&intc_cpu3 0x0b>,
-				<&intc_cpu4 0x0b>,
-				<&intc_cpu5 0x0b>,
-				<&intc_cpu6 0x0b>,
-				<&intc_cpu7 0x0b>,
-				<&intc_cpu8 0x0b>,
-				<&intc_cpu9 0x0b>,
-				<&intc_cpu10 0x0b>,
-				<&intc_cpu11 0x0b>,
-				<&intc_cpu12 0x0b>,
-				<&intc_cpu13 0x0b>,
-				<&intc_cpu14 0x0b>,
-				<&intc_cpu15 0x0b>;
 			msi-controller;
 			interrupt-controller;
 			#interrupt-cells = <0x00>;
@@ -560,23 +526,6 @@
 		imsics_s: imsics@3b000000 {
 			riscv,num-ids = <0xff>;
 			reg = <0x0 0x3b000000 0x0 0x80000>;
-			interrupts-extended =
-				<&intc_cpu0 0x09>,
-				<&intc_cpu1 0x09>,
-				<&intc_cpu2 0x09>,
-				<&intc_cpu3 0x09>,
-				<&intc_cpu4 0x09>,
-				<&intc_cpu5 0x09>,
-				<&intc_cpu6 0x09>,
-				<&intc_cpu7 0x09>,
-				<&intc_cpu8 0x09>,
-				<&intc_cpu9 0x09>,
-				<&intc_cpu10 0x09>,
-				<&intc_cpu11 0x09>,
-				<&intc_cpu12 0x09>,
-				<&intc_cpu13 0x09>,
-				<&intc_cpu14 0x09>,
-				<&intc_cpu15 0x09>;
 			msi-controller;
 			interrupt-controller;
 			#interrupt-cells = <0x00>;

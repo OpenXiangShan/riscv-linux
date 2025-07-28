@@ -38,3 +38,27 @@
 &cpu3 {
 	status = "okay";
 };
+
+&clint {
+	interrupts-extended =
+		<&intc_cpu0 3>, <&intc_cpu0 7>,
+		<&intc_cpu1 3>, <&intc_cpu1 7>,
+		<&intc_cpu2 3>, <&intc_cpu2 7>,
+		<&intc_cpu3 3>, <&intc_cpu3 7>;
+};
+
+&imsics_m {
+	interrupts-extended =
+		<&intc_cpu0 0x0b>,
+		<&intc_cpu1 0x0b>,
+		<&intc_cpu2 0x0b>,
+		<&intc_cpu3 0x0b>;
+};
+
+&imsics_s {
+	interrupts-extended =
+		<&intc_cpu0 0x09>,
+		<&intc_cpu1 0x09>,
+		<&intc_cpu2 0x09>,
+		<&intc_cpu3 0x09>;
+};
