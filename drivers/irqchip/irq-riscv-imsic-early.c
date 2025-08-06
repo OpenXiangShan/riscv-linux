@@ -154,10 +154,13 @@ static int __init imsic_early_probe(struct fwnode_handle *fwnode)
 	}
 
 	/* Initialize IPI domain */
-	rc = imsic_ipi_domain_init();
-	if (rc) {
-		pr_err("%pfwP: Failed to initialize IPI domain\n", fwnode);
-		return rc;
+	if (!of_property_read_bool(to_of_node(fwnode), "no-imsic-ipi")) {
+		/* Initialize IPI domain */
+		rc = imsic_ipi_domain_init();
+		if (rc) {
+			pr_err("%pfwP: Failed to initialize IPI domain\n", fwnode);
+			return rc;
+		}
 	}
 
 	/* Setup chained handler to the parent domain interrupt */
