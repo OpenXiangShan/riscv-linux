@@ -531,6 +531,7 @@
 			#interrupt-cells = <0x00>;
 			compatible = "riscv,imsics";
 			riscv,guest-index-bits = <0x03>;
+			no-imsic-ipi;
 		};
 
 		aplic_s: aplic@31120000 {
