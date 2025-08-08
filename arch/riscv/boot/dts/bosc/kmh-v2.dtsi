@@ -571,6 +571,123 @@
 			reg-names = "control";
 			status = "disabled";
 		};
+
+		synps_pcie0: pcie_synps@48000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x48000000 0x0 0x8000000>,
+				<0x0 0x6fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0xfff0000>,
+				 <0x03000000 0x00000040 0x00000000 0x00000040 0x00000000 0x00000002 0x0000000>;
+
+			num-ib-windows = <1>;
+			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0 0 7>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <12 IRQ_TYPE_EDGE_RISING>, <13 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+		synps_pcie1: pcie_synps@50000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x50000000 0x0 0x00080000>,
+			      <0x0 0x7fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x70000000 0x00000000 0xfff0000>,
+				 <0x03000000 0x00000060 0x00000000 0x00000060 0x00000000 0x0000002 0x0>;
+
+			num-ib-windows = <1>;
+			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0 0 7>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <15 IRQ_TYPE_EDGE_RISING>, <16 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+		xdma_clkc: misc_clk_0 {
+			#clock-cells = <0>;
+			clock-frequency = <10000000>;
+			compatible = "fixed-clock";
+		};
+		xdma_0: pcie_xdma@48000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&xdma_clkc>, <&xdma_clkc>;
+			compatible = "xlnx,xdma-host-3.00", "xlnx,axi-pcie-host-1.00.a";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_0 1>,
+							<0x0 0 0 2 &pcie_intc_0 2>,
+							<0x0 0 0 3 &pcie_intc_0 3>,
+							<0x0 0 0 4 &pcie_intc_0 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&aplic_s>;
+			interrupts = <14 IRQ_TYPE_EDGE_RISING>, <13 IRQ_TYPE_EDGE_RISING>, <12 IRQ_TYPE_EDGE_RISING>;
+			msi-parent = <&imsics_s>;
+			bus-range = <0x00 0xff>;
+
+			ranges =	 <0x02000000 0x0000000  0x60000000 0x00000000 0x60000000 0x0000000 0x10000000>, // MEM resource Bit32
+					 <0x03000000 0x00000040 0x00000000 0x00000040 0x00000000 0x0000020 0x00000000>; // MEM resrouce Bit64 Prefetch
+			reg = <0x00000000 0x48000000  0x0 0x8000000>;
+
+			status = "disabled";
+			pcie_intc_0: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
+
+		xdma_1: pcie_xdma@50000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&xdma_clkc>, <&xdma_clkc>;
+			compatible = "xlnx,xdma-host-3.00", "xlnx,axi-pcie-host-1.00.a";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_1 1>,
+					<0x0 0 0 2 &pcie_intc_1 2>,
+					<0x0 0 0 3 &pcie_intc_1 3>,
+					<0x0 0 0 4 &pcie_intc_1 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&aplic_s>;
+			interrupts = <17 IRQ_TYPE_EDGE_RISING>, <16 IRQ_TYPE_EDGE_RISING>, <15 IRQ_TYPE_EDGE_RISING>;
+			msi-parent = <&imsics_s>;
+			bus-range = <0x00 0xff>;
+
+			ranges = <0x02000000 0x0000000  0x70000000 0x00000000 0x70000000 0x0000000 0x10000000>, // MEM resource Bit32
+				 <0x03000000 0x00000060 0x00000000 0x00000060 0x00000000 0x0000020 0x00000000>; // MEM resrouce Bit64 Prefetch
+			reg = <0x00000000 0x50000000  0x0 0x10000000>;
+
+			status = "disabled";
+			pcie_intc_1: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
 	};
 
 	chosen {
