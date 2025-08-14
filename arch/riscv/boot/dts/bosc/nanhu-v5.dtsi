@@ -346,11 +346,23 @@
 				<&intc_cpu15 3>, <&intc_cpu15 7>;
 		};
 
+		PLIC: interrupt-controller@3c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			reg = <0 0x3c000000 0 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <7>;
+			riscv,ndev = <64>;
+		};
+
 		uart0: serial@310b0000 {
 			compatible = "ns16550a";
 			reg = <0x0 0x310b0000 0x0 0x10000>;
 			reg-shift = <0x02>;
 			reg-io-width = <0x04>;
+			interrupt-parent = <&PLIC>;
+			interrupts = <40>;
 			clock-frequency = <50000000>;
 			current-speed = <115200>;
 			status = "disabled";
@@ -364,12 +376,70 @@
 			status = "disabled";
 		};
 
+		clkc: misc_clk_xdma {
+			#clock-cells = <0>;
+			clock-frequency = <10000000>;
+			compatible = "fixed-clock";
+		};
+
+		xdma_0: pcie@48000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&clkc>, <&clkc>;
+			compatible = "xlnx,xdma-host-3.00";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_0 1>,
+					<0x0 0 0 2 &pcie_intc_0 2>,
+					<0x0 0 0 3 &pcie_intc_0 3>,
+					<0x0 0 0 4 &pcie_intc_0 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&PLIC>;
+			interrupts = <53 IRQ_TYPE_EDGE_RISING>, <52 IRQ_TYPE_EDGE_RISING>, <51 IRQ_TYPE_EDGE_RISING>;
+			ranges = <0x02000000 0x00000000 0x20000000 0x0 0x40000000 0x0 0x10000000>;
+			reg = <0x00000000 0x48000000 0x0 0x1000000>;
+			status = "disabled";
+
+			pcie_intc_0: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
+		xdma_1: pcie@4c000000 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			clock-names = "sys_clk", "sys_clk_gt";
+			clocks = <&clkc>, <&clkc>;
+			compatible = "xlnx,xdma-host-3.00";
+			device_type = "pci";
+			interrupt-map =	<0x0 0 0 1 &pcie_intc_1 1>,
+					<0x0 0 0 2 &pcie_intc_1 2>,
+					<0x0 0 0 3 &pcie_intc_1 3>,
+					<0x0 0 0 4 &pcie_intc_1 4>;
+			interrupt-map-mask = <0x0 0 0 7>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&PLIC>;
+			interrupts = <59 IRQ_TYPE_EDGE_RISING>, <58 IRQ_TYPE_EDGE_RISING>, <57 IRQ_TYPE_EDGE_RISING>;
+			ranges = <0x02000000 0x0 0x40000000 0x0 0x60000000 0x00000000 0x20000000>;
+			reg = <0x00000000 0x4c000000 0x0 0x4000000>;
+
+			status = "disabled";
+			pcie_intc_1: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller ;
+			};
+		};
 	};
 
 	chosen {
 		rng-seed = <0xc8518d39 0x6bde432f 0x4d998c79 0xaa192096 0xdbcf36f3 0x532f3ab3 0x965240fe 0xac379c0e>;
 	};
-	
+
 	memory: memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x04 0x0>;

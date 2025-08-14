@@ -54,3 +54,21 @@
 &uart0 {
 	status = "okay";
 };
+&PLIC {
+
+	interrupts-extended =
+		<&intc_cpu0  0xb>, <&intc_cpu0	9>,
+		<&intc_cpu1  0xb>, <&intc_cpu1 	9>,
+		<&intc_cpu2  0xb>, <&intc_cpu2 	9>,
+		<&intc_cpu3  0xb>, <&intc_cpu3 	9>,
+		<&intc_cpu4  0xb>, <&intc_cpu4 	9>,
+		<&intc_cpu5  0xb>, <&intc_cpu5 	9>,
+		<&intc_cpu6  0xb>, <&intc_cpu6 	9>,
+		<&intc_cpu7  0xb>, <&intc_cpu7 	9>;
+};
+&xdma_0 {
+	status = "disabled";
+};
+&xdma_1 {
+	status = "disabled";
+};
