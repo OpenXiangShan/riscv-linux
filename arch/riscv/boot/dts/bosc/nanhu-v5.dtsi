@@ -381,6 +381,52 @@
 			clock-frequency = <10000000>;
 			compatible = "fixed-clock";
 		};
+		synps_pcie0: pcie_synps@32000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x32000000 0x0 0x8000000>,
+				<0x0 0x6fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0xfff0000>;
+
+			num-ib-windows = <1>;
+			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0 0 7>;
+
+			interrupt-parent = <&PLIC>;
+			interrupt-names = "msi", "hp";
+			interrupts = <42 IRQ_TYPE_EDGE_RISING>, <43 IRQ_TYPE_EDGE_RISING>;
+			num-lanes = <1>;
+			status = "disable";
+		};
+		synps_pcie1: pcie_synps@40000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x40000000 0x0 0x00080000>,
+			      <0x0 0x7fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x70000000 0x00000000 0xfff0000>;
+
+			num-ib-windows = <1>;
+			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0 0 7>;
+
+			interrupt-parent = <&PLIC>;
+			interrupt-names = "msi", "hp";
+			interrupts = <44 IRQ_TYPE_EDGE_RISING>, <44 IRQ_TYPE_EDGE_RISING>;
+			num-lanes = <1>;
+			status = "disable";
+		};
 
 		xdma_0: pcie@48000000 {
 			#address-cells = <3>;
@@ -397,8 +443,8 @@
 			interrupt-map-mask = <0x0 0 0 7>;
 			interrupt-names = "misc", "msi0", "msi1";
 			interrupt-parent = <&PLIC>;
-			interrupts = <53 IRQ_TYPE_EDGE_RISING>, <52 IRQ_TYPE_EDGE_RISING>, <51 IRQ_TYPE_EDGE_RISING>;
-			ranges = <0x02000000 0x00000000 0x20000000 0x0 0x40000000 0x0 0x10000000>;
+			interrupts = <53 52 51>;
+			ranges = <0x02000000 0x00000000 0x20000000 0x0 0x40000000 0x0 0x8000000>;
 			reg = <0x00000000 0x48000000 0x0 0x1000000>;
 			status = "disabled";
 
@@ -423,7 +469,7 @@
 			interrupt-map-mask = <0x0 0 0 7>;
 			interrupt-names = "misc", "msi0", "msi1";
 			interrupt-parent = <&PLIC>;
-			interrupts = <59 IRQ_TYPE_EDGE_RISING>, <58 IRQ_TYPE_EDGE_RISING>, <57 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <59 58 57 >;
 			ranges = <0x02000000 0x0 0x40000000 0x0 0x60000000 0x00000000 0x20000000>;
 			reg = <0x00000000 0x4c000000 0x0 0x4000000>;
 
