@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v3a";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	        timebase-frequency = <24000000>;
+
+		cpu0: cpu@0 {
+			clock-frequency = <100000000>;
+			compatible = "bosc,nanhu-v3a", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x0>;
+			riscv,isa = "rv64imafdcv";
+			status = "okay";
+			timebase-frequency = <24000000>;
+			tlb-split;
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+		cpu1: cpu@1 {
+			clock-frequency = <0>;
+			compatible = "bosc,nanhu-v3a", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory>;
+			reg = <0x1>;
+			riscv,isa = "rv64imafdcv";
+			status = "okay";
+			timebase-frequency = <24000000>;
+			tlb-split;
+
+			cpu1_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "bosc,nanhu-v3a-soc", "simple-bus";
+		ranges;
+
+
+		clint0: clint@38000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7 &cpu1_intc 3 &cpu1_intc 7>;
+			reg = <0x0 0x38000000 0x0 0x10000>;
+			reg-names = "control";
+			clock-frequency-mhz = <10>;
+		};
+
+		PLIC: interrupt-controller@3c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&cpu0_intc 0xb &cpu0_intc 0x9 &cpu1_intc 0xb &cpu1_intc 0x9>;
+			reg = <0 0x3c000000 0 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <7>;
+			riscv,ndev = <128>;
+		};
+
+		clkc: misc_clk_0 {
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			compatible = "fixed-clock";
+		};
+		clkb: misc_clk_1 {
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+			compatible = "fixed-clock";
+		};
+                  
+                ethernet0: ethernet@190000 {
+                        compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
+                        reg = <0 0x190000 0 0x10000>;
+                        reg-names = "stmmaceth";
+                        interrupt-parent = <&PLIC>;
+                        interrupts = <76 75 74>;
+                        interrupt-names = "eth_lpi", "macirq", "eth_wake_irq";
+                        clock-names = "stmmaceth";
+                        clocks = <&clkc>;
+                        snps,pbl = <2>;
+                        snps,mixed-burst;
+                        phy-mode = "rgmii";
+                        phy-handle = <&phy0>;
+                        mdio0: midi-bus@0 {
+                             #address-cells = <0x1>;
+                             #size-cells = <0x0>;
+                             compatible = "snps,dwmac-mdio";
+                             phy0: phy@0 {
+                                phyaddr = <0x0>;
+                                compatible = "marvell,88E1510";
+                                device_type = "ethernet-phy";
+                                reg = <0x0>;
+                             };
+                             phy1: phy@1 {
+                                phyaddr = <0x1>;
+                                compatible = "marvell,88E1510";
+                                device_type = "ethernet-phy";
+                                reg = <0x1>;
+                             };
+                        };
+                };
+                ethernet1: ethernet@1a0000 {
+                        compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
+                        reg = <0 0x1a0000 0 0x10000>;
+                        reg-names = "stmmaceth1";
+                        interrupt-parent = <&PLIC>;
+                        interrupts = <73 72 71>;
+                        interrupt-names = "eth_lpi", "macirq", "eth_wake_irq";
+                        clock-names = "stmmaceth";
+                        clocks = <&clkc>;
+                        snps,pbl = <2>;
+                        snps,mixed-burst;
+                        phy-mode = "rgmii";
+                        fixed-link{
+                            speed =  <1000>;
+                            full-duplex;
+                            pause;
+                            asym-pause;
+                        };
+                };
+
+               sdhci2: sdhci@1200000 {
+	               compatible = "snps,dwcmshc-sdhci";
+	               reg = <0 0x1200000 0 0x20000>;
+	               interrupt-parent = <&PLIC>;
+	               interrupts = <77 78>;
+	               clocks = <&clkb>;
+	               clock-names = "core";
+                       no-1-8-v;
+	               disable-wp;
+	               bus-width = <4>;
+		       max_req_size = <4096>;
+		       status = "okay";
+	       };
+
+               i2c0_clock: i2c0_clck {            
+                        #clock-cells = <0>;
+                        clock-frequency = <100000000>;
+                        compatible = "fixed-clock";
+               };
+            
+               i2c@70000 { 
+                        compatible = "snps,designware-i2c";  
+                        #address-cells = <1>; 
+                        #size-cells = <0>;
+                        reg = <0x0 0x70000 0x0 0x10000>;
+                        interrupts = <66>;
+                        interrupt-parent = <&PLIC>;
+                        clock-frequency = <100000>;
+                        clocks = <&i2c0_clock>;
+                        status = "okay";
+                };
+               i2c@80000 { 
+                        compatible = "snps,designware-i2c";  
+                        #address-cells = <1>; 
+                        #size-cells = <0>;
+                        reg = <0x0 0x80000 0x0 0x10000>;
+                        interrupts = <65>;
+                        interrupt-parent = <&PLIC>;
+                        clock-frequency = <100000>;
+                        clocks = <&i2c0_clock>;
+                        status = "okay";
+                };
+
+		uart0: serial@50000 {
+			compatible = "ns16550a";
+			reg = <0x0 0x50000 0x0 0x10000>;
+			reg-shift = <0x02>;
+			reg-io-width = <0x04>;
+			interrupt-parent = <&PLIC>;
+			interrupts = <68>;
+			clock-frequency = <100000000>;
+			status = "okay";
+		};
+	};
+
+	memory: memory@100000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x2 0x00000000>;
+	};
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+                bootargs = "console=ttyS0,115200 earlycon";
+		stdout-path = "serial0:115200n8";
+	};
+};

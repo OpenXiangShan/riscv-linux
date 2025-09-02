@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025 BOSC */
+
+/dts-v1/;
+#include "nanhu-v5.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v5-dev";
+	model = "bosc,nanhu-v5-16core";
+
+	chosen {
+		bootargs = "console=hvc0 earlycon=sbi loglevel=8";
+		opensbi-config {
+		    compatible = "opensbi,config";
+		    cold-boot-harts = <&cpu0>;
+		};
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&cpu1 {
+	status = "okay";
+};
+
+&cpu2 {
+	status = "okay";
+};
+
+&cpu3 {
+	status = "okay";
+};
+
+&cpu4 {
+	status = "okay";
+};
+
+&cpu5 {
+	status = "okay";
+};
+
+&cpu6 {
+	status = "okay";
+};
+
+&cpu7 {
+	status = "okay";
+};
+
+&cpu8 {
+	status = "okay";
+};
+
+&cpu9 {
+	status = "okay";
+};
+
+&cpu10 {
+	status = "okay";
+};
+
+&cpu11 {
+	status = "okay";
+};
+
+&cpu12 {
+	status = "okay";
+};
+
+&cpu13 {
+	status = "okay";
+};
+
+&cpu14 {
+	status = "okay";
+};
+
+&cpu15 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&PLIC {
+
+	interrupts-extended =
+		<&intc_cpu0  0xb>, <&intc_cpu0	9>,
+		<&intc_cpu1  0xb>, <&intc_cpu1 	9>,
+		<&intc_cpu2  0xb>, <&intc_cpu2 	9>,
+		<&intc_cpu3  0xb>, <&intc_cpu3 	9>,
+		<&intc_cpu4  0xb>, <&intc_cpu4 	9>,
+		<&intc_cpu5  0xb>, <&intc_cpu5 	9>,
+		<&intc_cpu6  0xb>, <&intc_cpu6 	9>,
+		<&intc_cpu7  0xb>, <&intc_cpu7 	9>,
+		<&intc_cpu8  0xb>, <&intc_cpu8 	9>,
+		<&intc_cpu9  0xb>, <&intc_cpu9 	9>,
+		<&intc_cpu10 0xb>, <&intc_cpu10 9>,
+		<&intc_cpu11 0xb>, <&intc_cpu11 9>,
+		<&intc_cpu12 0xb>, <&intc_cpu12 9>,
+		<&intc_cpu13 0xb>, <&intc_cpu13 9>,
+		<&intc_cpu14 0xb>, <&intc_cpu14 9>,
+		<&intc_cpu15 0xb>, <&intc_cpu15 9>;
+};
+
+&xdma_0 {
+	status = "disabled";
+};
+
+&xdma_1 {
+	status = "disabled";
+};

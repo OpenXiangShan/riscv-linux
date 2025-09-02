@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025 BOSC */
+
+/dts-v1/;
+#include "nanhu-v5.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v5-dev";
+	model = "bosc,nanhu-v5-1core";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon=sbi loglevel=8 root=/dev/nvme0n1p1 rootwait rw";
+		opensbi-config {
+		    compatible = "opensbi,config";
+		    cold-boot-harts = <&cpu0>;
+		};
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+&PLIC {
+
+	interrupts-extended = <&intc_cpu0  0xb>, <&intc_cpu0	9>;
+};
+&xdma_0 {
+	status = "disabled";
+};
+&xdma_1 {
+	status = "disabled";
+};

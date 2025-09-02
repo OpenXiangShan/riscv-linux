@@ -160,4 +160,12 @@ endchoice
 endif
 endif
 
+config SOC_XIANGSHAN
+        bool "XiangShan SoCs"
+        depends on MMU
+        select PINCTRL
+        select COMMON_CLK
+        help
+          This enables support for XiangShan SoC platform hardware
+
 endmenu # "SoC selection"

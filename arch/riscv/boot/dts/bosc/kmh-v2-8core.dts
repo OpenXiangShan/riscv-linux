@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025 BOSC */
+
+/dts-v1/;
+#include "kmh-v2.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,kmh-v2-dev";
+	model = "bosc,kmh-v2-8core";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2 amdgpu.cik=1 amdgpu.si=1 amdgpu.dpm=0 pcie_aspm=off pcie_port_pm=off amdgpu.vm_update_mode=3 root=/dev/sda1 rw ";
+		stdout-path = "serial0:115200n8";
+		opensbi-config {
+		    compatible = "opensbi,config";
+		    cold-boot-harts = <&cpu0>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&cpu1 {
+	status = "okay";
+};
+
+&cpu2 {
+	status = "okay";
+};
+
+&cpu3 {
+	status = "okay";
+};
+
+&cpu4 {
+	status = "okay";
+};
+
+&cpu5 {
+	status = "okay";
+};
+
+&cpu6 {
+	status = "okay";
+};
+
+&cpu7 {
+	status = "okay";
+};
+
+&clint {
+	interrupts-extended =
+		<&intc_cpu0 3>, <&intc_cpu0 7>,
+		<&intc_cpu1 3>, <&intc_cpu1 7>,
+		<&intc_cpu2 3>, <&intc_cpu2 7>,
+		<&intc_cpu3 3>, <&intc_cpu3 7>,
+        <&intc_cpu4 3>, <&intc_cpu4 7>,
+		<&intc_cpu5 3>, <&intc_cpu5 7>,
+		<&intc_cpu6 3>, <&intc_cpu6 7>,
+		<&intc_cpu7 3>, <&intc_cpu7 7>;
+};
+
+&imsics_m {
+	interrupts-extended =
+		<&intc_cpu0 0x0b>,
+		<&intc_cpu1 0x0b>,
+		<&intc_cpu2 0x0b>,
+		<&intc_cpu3 0x0b>,
+        <&intc_cpu4 0x0b>,
+		<&intc_cpu5 0x0b>,
+		<&intc_cpu6 0x0b>,
+		<&intc_cpu7 0x0b>;
+};
+
+&imsics_s {
+	interrupts-extended =
+		<&intc_cpu0 0x09>,
+		<&intc_cpu1 0x09>,
+		<&intc_cpu2 0x09>,
+		<&intc_cpu3 0x09>,
+        <&intc_cpu4 0x09>,
+		<&intc_cpu5 0x09>,
+		<&intc_cpu6 0x09>,
+		<&intc_cpu7 0x09>;
+};

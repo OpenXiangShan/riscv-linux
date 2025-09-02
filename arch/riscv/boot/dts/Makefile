@@ -8,5 +8,6 @@ subdir-y += sophgo
 subdir-y += spacemit
 subdir-y += starfive
 subdir-y += thead
+subdir-y += bosc
 
 obj-$(CONFIG_BUILTIN_DTB) := $(addsuffix /, $(subdir-y))
