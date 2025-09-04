@@ -19,8 +19,8 @@
 			mmu-type = "riscv,sv39";
 			reg = <0x0>;
 			riscv,isa = "rv64imafdc";
-			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			riscv,isa-base = "rv64i_zicbom";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c","zicbom",
                                               "sstc";
 
                         status = "disabled";
@@ -488,6 +488,6 @@
 
 	memory: memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x04 0x0>;
+		reg = <0x0 0x80000000 0x00 0x20000000>;
 	};
 };

@@ -108,3 +108,6 @@ obj-$(CONFIG_64BIT)		+= pi/
 obj-$(CONFIG_ACPI)		+= acpi.o
 obj-$(CONFIG_LIVEPATCH_WO_FTRACE)	+= livepatch.o
 obj-$(CONFIG_ACPI_NUMA)                += acpi_numa.o
+
+# SVPBMT test module
+obj-$(CONFIG_RISCV_TEST_SVPBMT)		+= svpbmt_test.o svpbmt_test_2.o

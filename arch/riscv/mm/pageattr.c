@@ -352,6 +352,18 @@ int set_memory_rw_nx(unsigned long addr, int numpages)
 			    __pgprot(_PAGE_EXEC));
 }
 
+int set_memory_wc(unsigned long addr, int numpages)
+{
+	return __set_memory(addr, numpages, __pgprot(_PAGE_READ | _PAGE_WRITE | _PAGE_NOCACHE | _PAGE_EXEC),
+			    __pgprot(0));
+}
+
+int set_memory_io(unsigned long addr, int numpages)
+{
+	return __set_memory(addr, numpages, __pgprot(_PAGE_READ | _PAGE_WRITE | _PAGE_IO | _PAGE_EXEC),
+			    __pgprot(0));
+}
+
 int set_memory_ro(unsigned long addr, int numpages)
 {
 	return __set_memory(addr, numpages, __pgprot(_PAGE_READ),

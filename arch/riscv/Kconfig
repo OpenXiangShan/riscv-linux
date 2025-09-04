@@ -523,6 +523,19 @@ config RISCV_ISA_SVPBMT
 
 	   If you don't know what to do here, say Y.
 
+config RISCV_TEST_SVPBMT
+	tristate "SVPBMT test module"
+	depends on 64BIT && MMU && RISCV_ISA_SVPBMT
+	default n
+	help
+	   This option enables a kernel module that tests the functionality
+	   of the Svpbmt extension. The module will allocate memory with
+	   different memory types (normal, non-cacheable, IO) and verify
+	   that the page table entries are correctly set with the
+	   corresponding memory type attributes.
+
+	   If unsure, say N.
+
 config TOOLCHAIN_HAS_V
 	bool
 	default y
