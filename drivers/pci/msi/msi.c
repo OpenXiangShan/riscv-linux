@@ -851,7 +851,11 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	}
 #endif
 
+#ifdef CONFIG_ARCH_SOPHGO
 	if (check_vendor_id(dev, vendor_id_list, vendor_id_list_num)) {
+#else
+	if (1) {
+#endif
 		if (maxvec < minvec)
 			return -ERANGE;
 
