@@ -18,10 +18,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv39";
 			reg = <0x0>;
-			riscv,isa = "rv64imafdc";
-			riscv,isa-base = "rv64i_zicbom";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c","zicbom",
-                                              "sstc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -37,10 +37,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x1>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -56,10 +56,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x2>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -75,10 +75,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x3>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -94,10 +94,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x4>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -113,10 +113,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x5>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -132,10 +132,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x6>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -151,10 +151,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x7>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -170,10 +170,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x8>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -189,10 +189,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0x9>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -208,10 +208,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xa>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -227,10 +227,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xb>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -246,10 +246,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xc>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -265,10 +265,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xd>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -284,10 +284,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xe>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -303,10 +303,10 @@
 			device_type = "cpu";
 			mmu-type = "riscv,sv48";
 			reg = <0xf>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_svpbmt_zicbom_smstateen_sscofpmf_zicntr_zihpm_zicboz_sdtrig_svade";
 			riscv,isa-base = "rv64i";
-			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-                                              "sstc";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "svpbmt","zicbom",
+                                              "smstateen", "sscofpmf","zicntr", "zihpm", "zicboz", "sdtrig", "svade","sstc";
 
                         status = "disabled";
 
@@ -445,7 +445,7 @@
 			interrupt-parent = <&PLIC>;
 			interrupts = <53 52 51>;
 			ranges = <0x02000000 0x00000000 0x20000000 0x0 0x40000000 0x0 0x8000000>;
-			reg = <0x00000000 0x48000000 0x0 0x1000000>;
+			reg = <0x00000000 0x48000000 0x0 0x2000000>;
 			status = "disabled";
 
 			pcie_intc_0: interrupt-controller {
