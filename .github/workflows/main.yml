@@ -1,0 +1,17 @@
+name: rvck ci
+
+on:
+  pull_request_target:
+    types: [opened,reopened,synchronize]
+  issues:
+    types: [opened,reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  rvck-ci:
+    permissions:
+      issues: write
+      pull-requests: write
+    uses: OERV-RVCI/RVCK-RAVA/.github/workflows/rvck-actions.yml@main
+    secrets: inherit
