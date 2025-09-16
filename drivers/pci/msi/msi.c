@@ -837,6 +837,10 @@ static bool pci_msix_validate_entries(struct pci_dev *dev, struct msix_entry *en
 	return true;
 }
 
+#ifndef CONFIG_SOC_XIANGSHAN
+#define CONFIG_SOC_XIANGSHAN 0
+#endif
+
 int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int minvec,
 			    int maxvec, struct irq_affinity *affd, int flags)
 {
@@ -851,11 +855,7 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	}
 #endif
 
-#ifdef CONFIG_ARCH_SOPHGO
-	if (check_vendor_id(dev, vendor_id_list, vendor_id_list_num)) {
-#else
-	if (1) {
-#endif
+	if (check_vendor_id(dev, vendor_id_list, vendor_id_list_num) || CONFIG_SOC_XIANGSHAN) {
 		if (maxvec < minvec)
 			return -ERANGE;
 
