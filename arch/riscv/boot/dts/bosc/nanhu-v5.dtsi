@@ -434,7 +434,7 @@
 			#size-cells = <2>;
 			clock-names = "sys_clk", "sys_clk_gt";
 			clocks = <&clkc>, <&clkc>;
-			compatible = "xlnx,xdma-host-3.00";
+			compatible = "xlnx,xdma-host-3.00", "xlnx,axi-pcie-host-1.00.a";
 			device_type = "pci";
 			interrupt-map =	<0x0 0 0 1 &pcie_intc_0 1>,
 					<0x0 0 0 2 &pcie_intc_0 2>,
@@ -460,7 +460,7 @@
 			#size-cells = <2>;
 			clock-names = "sys_clk", "sys_clk_gt";
 			clocks = <&clkc>, <&clkc>;
-			compatible = "xlnx,xdma-host-3.00";
+			compatible = "xlnx,xdma-host-3.00", "xlnx,axi-pcie-host-1.00.a";
 			device_type = "pci";
 			interrupt-map =	<0x0 0 0 1 &pcie_intc_1 1>,
 					<0x0 0 0 2 &pcie_intc_1 2>,
