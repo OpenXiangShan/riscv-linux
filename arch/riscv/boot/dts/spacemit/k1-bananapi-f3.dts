@@ -310,3 +310,139 @@
 	pinctrl-0 = <&pinctrl_pwm7_0>;
 	status = "okay";
 };
+
+/* SDCard */
+&sdhci0 {
+	pinctrl-names = "default","fast";
+	pinctrl-0 = <&pinctrl_mmc1>;
+	pinctrl-1 = <&pinctrl_mmc1_fast>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 80 0>;
+	cd-inverted;
+	vmmc-supply = <&dcdc_4>;
+	vqmmc-supply = <&ldo_1>;
+	no-mmc;
+	no-sdio;
+	spacemit,sdh-host-caps-disable = <(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25)>;
+	spacemit,sdh-quirks = <(SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+				SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
+				SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)>;
+	spacemit,sdh-quirks2 = <(SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+				 SDHCI_QUIRK2_BROKEN_PHY_MODULE |
+				 SDHCI_QUIRK2_SET_AIB_MMC)>;
+	spacemit,aib_mmc1_io_reg = <0xD401E81C>;
+	spacemit,apbc_asfar_reg = <0xD4015050>;
+	spacemit,apbc_assar_reg = <0xD4015054>;
+	spacemit,rx_dline_reg = <0x0>;
+	spacemit,tx_dline_reg = <0x0>;
+	spacemit,tx_delaycode = <0x5f>;
+	spacemit,rx_tuning_limit = <50>;
+	spacemit,sdh-freq = <204800000>;
+	status = "okay";
+};
+
+/* SDIO */
+&sdhci1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mmc2>;
+	bus-width = <4>;
+	non-removable;
+	vqmmc-supply = <&dcdc_3>;
+	no-mmc;
+	no-sd;
+	spacemit,sdh-host-caps-disable = <(MMC_CAP_UHS_DDR50 | MMC_CAP_NEEDS_POLL)>;
+	spacemit,sdh-quirks = <(SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+				SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)>;
+	spacemit,sdh-quirks2 = <(SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+				 SDHCI_QUIRK2_BROKEN_PHY_MODULE)>;
+	spacemit,rx_dline_reg = <0x0>;
+	spacemit,tx_delaycode = <0x8f 0x5f>;
+	spacemit,rx_tuning_limit = <50>;
+	spacemit,sdh-freq = <375000000>;
+	status = "okay";
+};
+
+/* eMMC */
+&sdhci2 {
+	bus-width = <8>;
+	non-removable;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	no-sd;
+	no-sdio;
+	spacemit,sdh-quirks = <(SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+				SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)>;
+	spacemit,sdh-quirks2 = <SDHCI_QUIRK2_PRESET_VALUE_BROKEN>;
+	spacemit,sdh-freq = <375000000>;
+	status = "okay";
+};
+
+&eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gmac0>;
+
+	emac,reset-gpio = <&gpio 110 0>;
+	emac,reset-active-low;
+	emac,reset-delays-us = <0 10000 100000>;
+
+	/* store forward mode */
+	tx-threshold = <1518>;
+	rx-threshold = <12>;
+	tx-ring-num = <1024>;
+	rx-ring-num = <1024>;
+	dma-burst-len = <5>;
+
+	ref-clock-from-phy;
+	clk-tuning-enable;
+	clk-tuning-by-delayline;
+	tx-phase = <60>;
+	rx-phase = <73>;
+	phy-handle = <&rgmii0>;
+	status = "okay";
+
+	mdio-bus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		rgmii0: phy@0 {
+			compatible = "ethernet-phy-id001c.c916";
+			device_type = "ethernet-phy";
+			reg = <0x1>;
+			phy-mode = "rgmii";
+		};
+	};
+};
+
+&eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gmac1>;
+
+	emac,reset-gpio = <&gpio 115 0>;
+	emac,reset-active-low;
+	emac,reset-delays-us = <0 10000 100000>;
+
+	/* store forward mode */
+	tx-threshold = <1518>;
+	rx-threshold = <12>;
+	tx-ring-num = <1024>;
+	rx-ring-num = <1024>;
+	dma-burst-len = <5>;
+
+	ref-clock-from-phy;
+	clk-tuning-enable;
+	clk-tuning-by-delayline;
+	tx-phase = <90>;
+	rx-phase = <73>;
+	phy-handle = <&rgmii1>;
+	status = "okay";
+
+	mdio-bus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		rgmii1: phy@1 {
+			compatible = "ethernet-phy-id001c.c916";
+			device_type = "ethernet-phy";
+			reg = <0x1>;
+			phy-mode = "rgmii";
+		};
+	};
+};
