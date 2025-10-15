@@ -422,16 +422,16 @@
 			clock-frequency = <10000000>;
 			compatible = "fixed-clock";
 		};
-		synps_pcie0: pcie_synps@32000000 {
+		synps_pcie0: pcie_synps@48000000 {
 			compatible = "snps,dw-pcie";
-			reg = <0x0 0x32000000 0x0 0x8000000>,
-				<0x0 0x6fff0000 0x0 0x0010000>;
+			reg = <0x0 0x48000000 0x0 0x2000000>,
+			      <0x0 0x46ff0000 0x0 0x0010000>;
 			reg-names = "dbi", "config";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
-			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0xfff0000>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x40000000 0x00000000 0x6ff0000>; //128MB
 
 			num-ib-windows = <1>;
 			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
@@ -441,20 +441,19 @@
 
 			interrupt-parent = <&PLIC>;
 			interrupt-names = "msi", "hp";
-			interrupts = <42 IRQ_TYPE_EDGE_RISING>, <43 IRQ_TYPE_EDGE_RISING>;
 			num-lanes = <1>;
 			status = "disable";
 		};
-		synps_pcie1: pcie_synps@40000000 {
+		synps_pcie1: pcie_synps@4c000000 {
 			compatible = "snps,dw-pcie";
-			reg = <0x0 0x40000000 0x0 0x00080000>,
+			reg = <0x0 0x4c000000 0x0 0x04000000>,
 			      <0x0 0x7fff0000 0x0 0x0010000>;
 			reg-names = "dbi", "config";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
-			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x70000000 0x00000000 0xfff0000>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0x1fff0000>; //512MB
 
 			num-ib-windows = <1>;
 			dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
@@ -464,7 +463,7 @@
 
 			interrupt-parent = <&PLIC>;
 			interrupt-names = "msi", "hp";
-			interrupts = <44 IRQ_TYPE_EDGE_RISING>, <44 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <58 59>;
 			num-lanes = <1>;
 			status = "disable";
 		};
