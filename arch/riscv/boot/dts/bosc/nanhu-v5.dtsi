@@ -441,6 +441,7 @@
 
 			interrupt-parent = <&PLIC>;
 			interrupt-names = "msi", "hp";
+			interrupts = <52 53>;
 			num-lanes = <1>;
 			status = "disable";
 		};
