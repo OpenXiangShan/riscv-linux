@@ -145,14 +145,18 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 
 	pgd = pgd_offset(mm, address);
 	printk("pgdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pgd, page_to_phys(virt_to_page(pgd)), pgd_val(*pgd));
-	if (pgd_none(*pgd) || pgd_bad(*pgd))
+	if (pgd_none(*pgd) || pgd_bad(*pgd)){
+		spin_unlock_irqrestore(&debug_dump_lock, flags);
 		return;
+	}
 
 	if (pgtable_l5_enabled) {
 		p4d = p4d_offset(pgd, address);
 		printk("p4dp -- 0x%px(pa: 0x%llx) : 0x%lx\n", p4d, page_to_phys(virt_to_page(p4d)), p4d_val(*p4d));
-		if (p4d_none(*p4d) || p4d_bad(*p4d))
+		if (p4d_none(*p4d) || p4d_bad(*p4d)){
+			spin_unlock_irqrestore(&debug_dump_lock, flags);
 			return;
+		}
 	}
 	else
 		p4d = (p4d_t *)pgd;
@@ -160,9 +164,10 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 	if (pgtable_l4_enabled) {
 		pud = pud_offset(p4d, address);
 		printk("pudp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pud, page_to_phys(virt_to_page(pud)), pud_val(*pud));
-		if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+		if (pud_none(*pud) || unlikely(pud_bad(*pud))){
+			spin_unlock_irqrestore(&debug_dump_lock, flags);
 			return;
-
+		}
 	}
 	else
 		pud = (pud_t *)p4d;
@@ -171,8 +176,10 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 	printk("pmdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pmd, page_to_phys(virt_to_page(pmd)), pmd_val(*pmd));
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-	if (!ptep)
+	if (!ptep){
+		spin_unlock_irqrestore(&debug_dump_lock, flags);
 		return;
+	}
 	printk("ptep -- 0x%px(pa: 0x%llx) : 0x%lx\n", ptep, page_to_phys(virt_to_page(pmd)), pte_val(*ptep));
 	pte_value = pte_val(*ptep);
 	phy_addr = ((pte_value >> 10) << 12) |(address & 0xfff);
