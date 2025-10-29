@@ -21,7 +21,7 @@
 #include <linux/irq.h>
 #include <linux/kexec.h>
 #include <linux/entry-common.h>
-
+#include <linux/smp.h>
 #include <asm/asm-prototypes.h>
 #include <asm/bug.h>
 #include <asm/cfi.h>
@@ -114,6 +114,7 @@ void die(struct pt_regs *regs, const char *str)
 }
 
 #ifdef CONFIG_MY_PT_DUMP_DEBUG
+static DEFINE_SPINLOCK(debug_dump_lock);
 static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 {
 	struct mm_struct *mm = tsk->mm;
@@ -124,7 +125,12 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 	pmd_t *pmd;
 	pte_t *ptep;
 	spinlock_t *ptl;
-
+	unsigned long phy_addr = 0;
+	unsigned long pte_value = 0;
+	int cpu_id;
+	unsigned long flags;
+	spin_lock_irqsave(&debug_dump_lock, flags);
+#if 0
 	vma = find_vma(mm, address);
 	if (!vma) {
 		printk("####### %s -- Do not find vma\n", __FUNCTION__);
@@ -133,8 +139,9 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 		printk("####### %s -- addr:0x%lx, vm_start:0x%lx, vm_end:0x%lx\n",
 			__FUNCTION__, address, vma->vm_start, vma->vm_end);
 	}
-
-	printk("============= %s =============\n", __FUNCTION__);
+#endif
+	cpu_id = smp_processor_id();
+	printk("============= %s =============  address =0x%lx cpu_id =%d \n", __FUNCTION__, address, cpu_id);
 
 	pgd = pgd_offset(mm, address);
 	printk("pgdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pgd, page_to_phys(virt_to_page(pgd)), pgd_val(*pgd));
@@ -167,7 +174,12 @@ static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
 	if (!ptep)
 		return;
 	printk("ptep -- 0x%px(pa: 0x%llx) : 0x%lx\n", ptep, page_to_phys(virt_to_page(pmd)), pte_val(*ptep));
+	pte_value = pte_val(*ptep);
+	phy_addr = ((pte_value >> 10) << 12) |(address & 0xfff);
+	printk("phy_addr = 0x%lx \n", phy_addr);
+
 	pte_unmap_unlock(ptep, ptl);
+	spin_unlock_irqrestore(&debug_dump_lock, flags);
 }
 #endif
 
@@ -185,7 +197,8 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		dump_instr(KERN_INFO, regs);
 
 #ifdef CONFIG_MY_PT_DUMP_DEBUG
-		debug_dump_pt(tsk, addr);
+		printk("####### print bad phy addr  %s \n", __FUNCTION__);
+		debug_dump_pt(tsk,  addr);
 #endif
 	}
 
