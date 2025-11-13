@@ -625,6 +625,10 @@ config RISCV_ISA_ZBB
 
 	   If you don't know what to do here, say Y.
 
+config RISCV_PRE_EPT
+    bool "before create guest, create EPT table"
+    depends on KVM
+
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
 	depends on MMU

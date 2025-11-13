@@ -525,6 +525,30 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			if (ret)
 				break;
 		}
+#ifdef CONFIG_RISCV_PRE_EPT
+        if (base_gpa == 0x80000000) {
+            struct kvm_vcpu *vcpu = kvm_get_vcpu_by_id(kvm, 0);
+            unsigned long vma_pagesize;
+            short vma_pageshift;
+            gpa_t gpa = base_gpa + (vm_start - hva);
+
+            if (is_vm_hugetlb_page(vma)) {
+                printk("%s:  is_vm_hugetlb_page\n", __func__);
+                vma_pageshift = huge_page_shift(hstate_vma(vma));
+            }
+            else
+                vma_pageshift = PAGE_SHIFT;
+            vma_pagesize = 1ULL << vma_pageshift;
+
+            for(int i = 0; i < new->npages; i++) {
+                ret = kvm_riscv_gstage_map_noslot(vcpu, new, gpa + i * vma_pagesize, hva + i * vma_pagesize, true);
+                if (ret < 0) {
+                    printk("%s: kvm_riscv_gstage_map_noslot failed\n", __func__);
+		            return ret;
+                }
+            }
+        }
+#endif
 		hva = vm_end;
 	} while (hva < reg_end);
 
@@ -687,6 +711,108 @@ out_unlock:
 	kvm_release_pfn_clean(hfn);
 	return ret;
 }
+
+#ifdef CONFIG_RISCV_PRE_EPT
+int kvm_riscv_gstage_map_noslot(struct kvm_vcpu *vcpu,
+			 struct kvm_memory_slot *memslot,
+			 gpa_t gpa, unsigned long hva, bool is_write)
+{
+	int ret;
+	kvm_pfn_t hfn;
+	bool writable;
+	short vma_pageshift;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	struct vm_area_struct *vma;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_mmu_memory_cache *pcache = &vcpu->arch.mmu_page_cache;
+	bool logging = (memslot->dirty_bitmap &&
+			!(memslot->flags & KVM_MEM_READONLY)) ? true : false;
+	unsigned long vma_pagesize, mmu_seq;
+
+	/* We need minimum second+third level pages */
+	ret = kvm_mmu_topup_memory_cache(pcache, gstage_pgd_levels);
+	if (ret) {
+		kvm_err("Failed to topup G-stage cache\n");
+		return ret;
+	}
+
+	mmap_read_lock(current->mm);
+
+	vma = vma_lookup(current->mm, hva);
+	if (unlikely(!vma)) {
+		kvm_err("Failed to find VMA for hva 0x%lx\n", hva);
+		mmap_read_unlock(current->mm);
+		return -EFAULT;
+	}
+
+	if (is_vm_hugetlb_page(vma))
+		vma_pageshift = huge_page_shift(hstate_vma(vma));
+	else
+		vma_pageshift = PAGE_SHIFT;
+	vma_pagesize = 1ULL << vma_pageshift;
+	if (logging || (vma->vm_flags & VM_PFNMAP))
+		vma_pagesize = PAGE_SIZE;
+
+	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE)
+		gfn = (gpa & huge_page_mask(hstate_vma(vma))) >> PAGE_SHIFT;
+
+	/*
+	 * Read mmu_invalidate_seq so that KVM can detect if the results of
+	 * vma_lookup() or gfn_to_pfn_prot() become stale priort to acquiring
+	 * kvm->mmu_lock.
+	 *
+	 * Rely on mmap_read_unlock() for an implicit smp_rmb(), which pairs
+	 * with the smp_wmb() in kvm_mmu_invalidate_end().
+	 */
+	mmu_seq = kvm->mmu_invalidate_seq;
+	mmap_read_unlock(current->mm);
+
+	if (vma_pagesize != PUD_SIZE &&
+	    vma_pagesize != PMD_SIZE &&
+	    vma_pagesize != PAGE_SIZE) {
+		kvm_err("Invalid VMA page size 0x%lx\n", vma_pagesize);
+		return -EFAULT;
+	}
+
+	hfn = gfn_to_pfn_memslot(memslot, gfn);
+	if (hfn == KVM_PFN_ERR_HWPOISON) {
+		send_sig_mceerr(BUS_MCEERR_AR, (void __user *)hva,
+				vma_pageshift, current);
+		return 0;
+	}
+
+	/*
+	 * If logging is active then we allow writable pages only
+	 * for write faults.
+	 */
+	if (logging && !is_write)
+		writable = false;
+
+	spin_lock(&kvm->mmu_lock);
+
+	if (mmu_invalidate_retry(kvm, mmu_seq))
+		goto out_unlock;
+
+	if (writable) {
+		kvm_set_pfn_dirty(hfn);
+		mark_page_dirty(kvm, gfn);
+		ret = gstage_map_page(kvm, pcache, gpa, hfn << PAGE_SHIFT,
+				      vma_pagesize, false, true);
+	} else {
+		ret = gstage_map_page(kvm, pcache, gpa, hfn << PAGE_SHIFT,
+				      vma_pagesize, true, true);
+	}
+
+	if (ret)
+		kvm_err("Failed to map in G-stage\n");
+
+out_unlock:
+	spin_unlock(&kvm->mmu_lock);
+	kvm_set_pfn_accessed(hfn);
+	kvm_release_pfn_clean(hfn);
+	return ret;
+}
+#endif
 
 int kvm_riscv_gstage_alloc_pgd(struct kvm *kvm)
 {
