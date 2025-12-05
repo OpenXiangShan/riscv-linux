@@ -823,4 +823,13 @@ config SUNPLUS_SP7021_INTC
 	  chained controller, routing all interrupt source in P-Chip to
 	  the primary controller on C-Chip.
 
+
+config SIFIVE_PLIC_TEST
+	tristate "SiFive PLIC test driver"
+	depends on SIFIVE_PLIC
+	help
+	  This option enables the test driver for the SiFive PLIC interrupt controller.
+	  The driver is used to test interrupt handling functionality of the PLIC.
+
+
 endmenu
