@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025 BOSC */
+
+/dts-v1/;
+#include "kmh-v2.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,kmh-v2-dev";
+	model = "bosc,kmh-v2-2core";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2 pcie_aspm=off pcie_port_pm=off root=/dev/sda1 rw rootwait  radeon.si_support=0 amdgpu.si_support=1 selinux=0 ";
+		stdout-path = "serial0:115200n8";
+		opensbi-config {
+		    compatible = "opensbi,config";
+		    cold-boot-harts = <&cpu0>;
+		};
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&cpu1 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&clint {
+	interrupts-extended =
+		<&intc_cpu0 3>, <&intc_cpu0 7>,
+        <&intc_cpu1 3>, <&intc_cpu1 7>;
+};
+
+&imsics_m {
+	interrupts-extended =
+		<&intc_cpu0 0x0b>,
+        <&intc_cpu1 0x0b>;
+};
+
+&imsics_s {
+	interrupts-extended =
+		<&intc_cpu0 0x09>,
+        <&intc_cpu1 0x09>;
+};
+
+&synps_pcie0 {
+	reg = <0x0 0x32000000 0x0 0x1000000>,
+	    <0x0 0x67ff0000 0x0 0x0010000> ,
+	    <0x4f 0xffff0000 0x0 0x0010000>;
+
+	msi-parent = <&imsics_s>;
+	ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0x7ff0000>,
+	         <0x43000000 0x00000040 0x00000000 0x00000040 0x00000000 0x0000000f 0xffff0000>;
+	status = "okay";
+} ;
+&synps_pcie1 {
+	status = "okay";
+	reg = <0x0 0x40000000 0x0 0x400000>,
+	    <0x0 0x77ff0000 0x0 0x0010000>,
+	    <0x6f 0xffff0000 0x0 0x0010000>;
+	msi-parent = <&imsics_s>;
+	ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x70000000 0x00000000 0x7ff0000>,
+		<0x43000000 0x00000060 0x00000000 0x00000060 0x00000000 0x0000000f 0xffff0000> ;
+};
+
+&synps_pcie2{
+	status = "okay";
+};
+&synps_pcie3{
+	status = "okay";
+};
+&memory {
+	reg = <0x0 0x80000000 0x0 0x80000000>;
+};
