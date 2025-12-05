@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Kernel hacking"
 
+config MY_PT_DUMP_DEBUG
+	bool "Show page table entry on printks when unhandled signal occur"
+	default y
+
 menu "printk and dmesg options"
 
 config PRINTK_TIME
