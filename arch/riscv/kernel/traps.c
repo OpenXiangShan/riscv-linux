@@ -22,6 +22,8 @@
 #include <linux/irq.h>
 #include <linux/kexec.h>
 #include <linux/entry-common.h>
+#include <linux/pgtable.h>
+#include <linux/smp.h>
 
 #include <asm/asm-prototypes.h>
 #include <asm/bug.h>
@@ -112,6 +114,83 @@ void die(struct pt_regs *regs, const char *str)
 		make_task_dead(SIGSEGV);
 }
 
+#ifdef CONFIG_MY_PT_DUMP_DEBUG
+static DEFINE_SPINLOCK(debug_dump_lock);
+static void debug_dump_pt(struct task_struct *tsk, unsigned long address)
+{
+	struct mm_struct *mm = tsk->mm;
+	struct vm_area_struct *vma;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep;
+	spinlock_t *ptl;
+	unsigned long phy_addr = 0;
+	unsigned long pte_value = 0;
+	int cpu_id;
+	unsigned long flags;
+	spin_lock_irqsave(&debug_dump_lock, flags);
+#if 0
+	vma = find_vma(mm, address);
+	if (!vma) {
+		printk("####### %s -- Do not find vma\n", __FUNCTION__);
+	}
+	else {
+		printk("####### %s -- addr:0x%lx, vm_start:0x%lx, vm_end:0x%lx\n",
+			__FUNCTION__, address, vma->vm_start, vma->vm_end);
+	}
+#endif
+	cpu_id = smp_processor_id();
+	printk("============= %s =============  address =0x%lx cpu_id =%d \n", __FUNCTION__, address, cpu_id);
+
+	pgd = pgd_offset(mm, address);
+	printk("pgdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pgd, page_to_phys(virt_to_page(pgd)), pgd_val(*pgd));
+	if (pgd_none(*pgd) || pgd_bad(*pgd)){
+		spin_unlock_irqrestore(&debug_dump_lock, flags);
+		return;
+	}
+
+	if (pgtable_l5_enabled) {
+		p4d = p4d_offset(pgd, address);
+		printk("p4dp -- 0x%px(pa: 0x%llx) : 0x%lx\n", p4d, page_to_phys(virt_to_page(p4d)), p4d_val(*p4d));
+		if (p4d_none(*p4d) || p4d_bad(*p4d)){
+			spin_unlock_irqrestore(&debug_dump_lock, flags);
+			return;
+		}
+	}
+	else
+		p4d = (p4d_t *)pgd;
+
+	if (pgtable_l4_enabled) {
+		pud = pud_offset(p4d, address);
+		printk("pudp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pud, page_to_phys(virt_to_page(pud)), pud_val(*pud));
+		if (pud_none(*pud) || unlikely(pud_bad(*pud))){
+			spin_unlock_irqrestore(&debug_dump_lock, flags);
+			return;
+		}
+	}
+	else
+		pud = (pud_t *)p4d;
+
+	pmd = pmd_offset(pud, address);
+	printk("pmdp -- 0x%px(pa: 0x%llx) : 0x%lx\n", pmd, page_to_phys(virt_to_page(pmd)), pmd_val(*pmd));
+
+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+	if (!ptep){
+		spin_unlock_irqrestore(&debug_dump_lock, flags);
+		return;
+	}
+	printk("ptep -- 0x%px(pa: 0x%llx) : 0x%lx\n", ptep, page_to_phys(virt_to_page(pmd)), pte_val(*ptep));
+	pte_value = pte_val(*ptep);
+	phy_addr = ((pte_value >> 10) << 12) |(address & 0xfff);
+	printk("phy_addr = 0x%lx \n", phy_addr);
+
+	pte_unmap_unlock(ptep, ptl);
+	spin_unlock_irqrestore(&debug_dump_lock, flags);
+}
+#endif
+
 void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 {
 	struct task_struct *tsk = current;
@@ -124,6 +203,11 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		pr_cont("\n");
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
+
+#ifdef CONFIG_MY_PT_DUMP_DEBUG
+		printk("####### print bad phy addr  %s \n", __FUNCTION__);
+		debug_dump_pt(tsk,  addr);
+#endif
 	}
 
 	force_sig_fault(signo, code, (void __user *)addr);
