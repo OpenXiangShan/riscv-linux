@@ -39,3 +39,4 @@ kvm-y += vcpu_timer.o
 kvm-y += vcpu_vector.o
 kvm-y += vm.o
 kvm-y += vmid.o
+kvm-$(CONFIG_RISCV_DEBUG_PRINT_KVM) += my_debug_print.o
