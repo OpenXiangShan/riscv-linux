@@ -813,6 +813,8 @@ if RISCV_DEBUG_PRINT
 choice
 	prompt "Select riscv debug print host/guest"
 
+	config RISCV_DEBUG_PRINT_GUEST
+		bool "Select riscv debug print guest"
 	config RISCV_DEBUG_PRINT_HOST
 		bool "Select riscv debug print host"
 
