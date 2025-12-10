@@ -33,3 +33,4 @@ kvm-y += aia.o
 kvm-y += aia_device.o
 kvm-y += aia_aplic.o
 kvm-y += aia_imsic.o
+kvm-$(CONFIG_RISCV_DEBUG_PRINT_KVM) += my_debug_print.o

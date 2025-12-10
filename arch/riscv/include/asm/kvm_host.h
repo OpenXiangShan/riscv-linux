@@ -22,6 +22,10 @@
 #include <asm/kvm_vcpu_timer.h>
 #include <asm/kvm_vcpu_pmu.h>
 
+#ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
+#include <asm/kvm_debug.h>
+#endif
+
 #define KVM_MAX_VCPUS			1024
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
@@ -113,6 +117,10 @@ struct kvm_arch {
 
 	/* AIA Guest/VM context */
 	struct kvm_aia aia;
+
+#ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
+	struct kvm_debug_print debug_print;
+#endif
 };
 
 struct kvm_cpu_trap {
