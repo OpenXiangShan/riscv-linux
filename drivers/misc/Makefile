@@ -71,3 +71,4 @@ obj-$(CONFIG_TPS6594_PFSM)	+= tps6594-pfsm.o
 obj-$(CONFIG_NSM)		+= nsm.o
 obj-y	   	                += imsic_test.o
 obj-$(CONFIG_RISCV_DEBUG_PRINT_HOST) += my_debug_print.o
+obj-$(CONFIG_RISCV_DEBUG_PRINT_GUEST) += my_debug_print_guest.o
