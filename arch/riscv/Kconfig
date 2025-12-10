@@ -805,6 +805,21 @@ config RISCV_ISA_ZBKB
 
 	   If you don't know what to do here, say Y.
 
+config RISCV_DEBUG_PRINT
+	bool "Enable riscv debug print into mem"
+	default n
+
+if RISCV_DEBUG_PRINT
+choice
+	prompt "Select riscv debug print host/guest"
+
+	config RISCV_DEBUG_PRINT_HOST
+		bool "Select riscv debug print host"
+
+endchoice
+
+endif
+
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
 	depends on MMU
