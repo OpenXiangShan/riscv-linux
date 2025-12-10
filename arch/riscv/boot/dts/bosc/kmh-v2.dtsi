@@ -8,6 +8,25 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		my_reserved:my_reserved_buffer@90000000 {
+			compatible = "my,reserved-mem";
+			reg = <0x0 0x90000000 0x0 0x10000000>;
+			no-map;
+			status = "disabled";
+		};
+	};
+
+	my-debug-print {
+		compatible = "my,debug-print";
+		memory-region = <&my_reserved>;
+		status = "disabled";
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
