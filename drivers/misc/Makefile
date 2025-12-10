@@ -76,3 +76,4 @@ obj-y				+= keba/
 obj-y				+= amd-sbi/
 obj-$(CONFIG_MISC_RP1)		+= rp1/
 obj-y	   	                += imsic_test.o
+obj-$(CONFIG_RISCV_DEBUG_PRINT_HOST) += my_debug_print.o
