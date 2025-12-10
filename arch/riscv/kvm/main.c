@@ -92,6 +92,11 @@ static int __init riscv_kvm_init(void)
 	if (rc && rc != -ENODEV)
 		return rc;
 
+#ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
+	rc = kvm_my_print_debug_init();
+	if (rc && rc != -ENODEV)
+		return rc;
+#endif
 	kvm_riscv_gstage_mode_detect();
 	switch (kvm_riscv_gstage_mode) {
 	case HGATP_MODE_SV32X4:
