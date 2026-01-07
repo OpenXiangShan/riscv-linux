@@ -13,6 +13,10 @@
 #include <linux/kprobes.h>
 #include <linux/list.h>
 
+static void __remove_blank(char *buf);
+static int is_what(char *buf, const char *target);
+static void parse_string(char *buf, char *ret);
+
 struct kprobe_struct {
 	struct list_head list;
 	const char symbol_name[64];
@@ -30,6 +34,19 @@ struct my_debug_trgger_debug_intf {
 static char symbol_name[64] = { 0 };
 static char when[1024] = { 0 };
 static LIST_HEAD(kprobes);
+
+static void exec_trigger(void)
+{
+	printk("########### do trigger!!!\n");
+
+	__asm__ volatile (
+		".rept 40\n\t"
+		"nop\n\t"
+		".endr\n\t"
+		".word 0x81c04073"
+		::: "memory"
+	);
+}
 
 static int __get_reg(char *str, struct pt_regs *regs, unsigned long *reg)
 {
@@ -232,7 +249,7 @@ static void do_trigger(char *when, struct pt_regs *regs)
 			return;
 	}
 
-	printk("########### do trigger!!!\n");
+	exec_trigger();
 }
 
 static int kprobe_handler_pre(struct kprobe *p, struct pt_regs *regs)
@@ -288,7 +305,7 @@ static int register_kprobe_struct(char *symbol_name, char *when)
 static ssize_t register_ops_write(struct file *file, const char __user * buf,
 				  size_t count, loff_t * ppos)
 {
-	register_kprobe_struct(symbol_name, NULL);
+	register_kprobe_struct(symbol_name, when);
 
 	return count;
 }
@@ -301,6 +318,8 @@ static const struct file_operations register_ops = {
 static ssize_t symbol_name_ops_write(struct file *file, const char __user * buf,
 				     size_t count, loff_t * ppos)
 {
+	char *ptr = symbol_name;
+
 	if (count > 64) {
 		count = 64;
 		symbol_name[64] = 0;
@@ -311,7 +330,11 @@ static ssize_t symbol_name_ops_write(struct file *file, const char __user * buf,
 		return -1;
 	}
 
-	symbol_name[count - 1] = 0;
+	while ((*ptr != 0) && (*ptr != '\n'))
+		ptr++;
+
+	if (*ptr == '\n')
+		*ptr = 0;
 
 	printk("%s\n", symbol_name);
 
@@ -326,6 +349,8 @@ static const struct file_operations symbol_name_ops = {
 static ssize_t when_ops_write(struct file *file, const char __user * buf,
 			      size_t count, loff_t * ppos)
 {
+	char *ptr = when;
+
 	if (count > 1024)
 		count = 1024;
 
@@ -333,6 +358,14 @@ static ssize_t when_ops_write(struct file *file, const char __user * buf,
 		printk("%s -- copy from user failed\n", __FUNCTION__);
 		return -1;
 	}
+
+	while ((*ptr != 0) && (*ptr != '\n'))
+		ptr++;
+
+	if (*ptr == '\n')
+		*ptr = 0;
+
+	__remove_blank(when);
 
 	printk("%s\n", when);
 
