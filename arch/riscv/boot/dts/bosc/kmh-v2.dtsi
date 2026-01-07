@@ -15,9 +15,9 @@
 
 		my_reserved:my_reserved_buffer@90000000 {
 			compatible = "my,reserved-mem";
-			reg = <0x0 0x90000000 0x0 0x10000000>;
+			reg = <0x0 0x90000000 0x0 0x200000>;
 			no-map;
-			status = "disabled";
+			status = "okay";
 		};
 	};
 
@@ -25,6 +25,11 @@
 		compatible = "my,debug-print";
 		memory-region = <&my_reserved>;
 		status = "disabled";
+	};
+	my-debug-trigger {
+		compatible = "my,debug-trigger";
+		memory-region = <&my_reserved>;
+		status = "okay";
 	};
 
 	cpus {
