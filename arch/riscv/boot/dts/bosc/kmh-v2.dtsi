@@ -17,7 +17,7 @@
 			compatible = "my,reserved-mem";
 			reg = <0x0 0x90000000 0x0 0x200000>;
 			no-map;
-			status = "okay";
+			status = "disabled";
 		};
 	};
 
@@ -29,7 +29,7 @@
 	my-debug-trigger {
 		compatible = "my,debug-trigger";
 		memory-region = <&my_reserved>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	cpus {
