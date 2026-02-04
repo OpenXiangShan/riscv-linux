@@ -19,6 +19,15 @@
 			no-map;
 			status = "disabled";
 		};
+
+		/*
+		* NOTE: This region's 'reg' must exactly match the 'reg' in nvdimm_pmem node.
+		*       Mismatch will cause pmem driver failure or memory conflict.
+		*/
+		region@400000000 {
+		    reg = <0x4 0x0 0x0 0x80000000>;  // 2GB
+		    no-map;
+		};
 	};
 
 	my-debug-print {
@@ -30,6 +39,12 @@
 		compatible = "my,debug-trigger";
 		memory-region = <&my_reserved>;
 		status = "disabled";
+	};
+
+	nvdimm_pmem {
+	    compatible = "pmem-region", "nvdimm";
+	    reg = <0x4 0x0 0x0 0x80000000>;  // 2GB
+	    status = "okay";
 	};
 
 	cpus {
@@ -770,6 +785,6 @@
 
 	memory: memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x04 0x0>;
+		reg = <0x0 0x80000000 0x03 0x80000000>;
 	};
 };
