@@ -55,6 +55,14 @@
 	status = "okay";
 };
 
-&nvdimm_pmem0 {
+&nvdimm0 {
+	status = "disabled";
+};
+
+&nvdimm1 {
+	status = "disabled";
+};
+
+&nvdimm2 {
 	status = "disabled";
 };
