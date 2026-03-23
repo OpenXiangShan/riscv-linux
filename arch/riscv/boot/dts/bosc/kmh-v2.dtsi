@@ -777,6 +777,22 @@
 				interrupt-controller ;
 			};
 		};
+
+		my_virtio_blk: my_virtio_blk@310a0000 {
+			compatible = "virtio,mmio";
+			reg = <0 0x310a0000 0 0x1000>;
+			interrupt-parent = <&aplic_s>;
+			interrupts = <15 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+		};
+
+		my_virtio_console: my_virtio_console@31080000 {
+			compatible = "virtio,mmio";
+			reg = <0 0x31080000 0 0x1000>;
+			interrupt-parent = <&aplic_s>;
+			interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+		};
 	};
 
 	chosen {
