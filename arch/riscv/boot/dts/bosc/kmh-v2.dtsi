@@ -41,7 +41,7 @@
 		status = "disabled";
 	};
 
-	nvdimm_pmem {
+	nvdimm_pmem0: nvdimm_pmem {
 	    compatible = "pmem-region", "nvdimm";
 	    reg = <0x4 0x0 0x0 0x80000000>;  // 2GB
 	    status = "okay";
