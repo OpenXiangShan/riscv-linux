@@ -752,6 +752,9 @@ static int riscv_iommu_iodir_set_mode(struct riscv_iommu_device *iommu,
 			return -EBUSY;
 		}
 
+		riscv_iommu_writeq(iommu, 0x2b0, 0);
+		riscv_iommu_writeq(iommu, 0x2b0, 1);
+
 		/* Verify IOMMU hardware accepts new DDTP config. */
 		mode = FIELD_GET(RISCV_IOMMU_DDTP_IOMMU_MODE, ddtp);
 
