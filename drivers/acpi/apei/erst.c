@@ -665,16 +665,19 @@ static int __erst_write_to_storage(u64 offset)
 	rc = apei_exec_run(&ctx, ACPI_ERST_EXECUTE_OPERATION);
 	if (rc)
 		return rc;
-	for (;;) {
+		/*it related to the register status and skip it.*/ 
+/*	for (;;) {
 		rc = apei_exec_run(&ctx, ACPI_ERST_CHECK_BUSY_STATUS);
 		if (rc)
 			return rc;
 		val = apei_exec_ctx_get_output(&ctx);
+		   pr_err("%s, line=%d, val=%d\n", __func__, __LINE__, val);
 		if (!val)
 			break;
+	//	ctx.value = 0 ; // debug.
 		if (erst_timedout(&timeout, SPIN_UNIT))
 			return -EIO;
-	}
+	} */
 	rc = apei_exec_run(&ctx, ACPI_ERST_GET_COMMAND_STATUS);
 	if (rc)
 		return rc;
@@ -710,16 +713,18 @@ static int __erst_read_from_storage(u64 record_id, u64 offset)
 	rc = apei_exec_run(&ctx, ACPI_ERST_EXECUTE_OPERATION);
 	if (rc)
 		return rc;
-	for (;;) {
+		/*it related to the register status and skip it.*/ 	
+/*	for (;;) {
 		rc = apei_exec_run(&ctx, ACPI_ERST_CHECK_BUSY_STATUS);
 		if (rc)
 			return rc;
 		val = apei_exec_ctx_get_output(&ctx);
+	   pr_err("%s, line=%d, val=%d\n", __func__, __LINE__, val);	
 		if (!val)
 			break;
 		if (erst_timedout(&timeout, SPIN_UNIT))
 			return -EIO;
-	}
+	} */
 	rc = apei_exec_run(&ctx, ACPI_ERST_GET_COMMAND_STATUS);
 	if (rc)
 		return rc;
@@ -1205,7 +1210,10 @@ static int __init erst_init(void)
 	status = acpi_get_table(ACPI_SIG_ERST, 0,
 				(struct acpi_table_header **)&erst_tab);
 	if (status == AE_NOT_FOUND)
+	{
+	    pr_err("%s AE_NOT_FOUND, line=%d\n", __func__, __LINE__);
 		goto err;
+	}
 	else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 		pr_err("Failed to get table, %s\n", msg);

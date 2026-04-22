@@ -26,6 +26,10 @@
 
 #include "apei-internal.h"
 
+#include <asm/sbi.h>
+#define SBI_EXT_XS_NMI_TEST 0x0F000000
+#define SBI_EXT_NMI_TYPE    0x80000000
+
 #undef pr_fmt
 #define pr_fmt(fmt) "EINJ: " fmt
 
@@ -728,6 +732,19 @@ int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 	 * Other types leap directly to injection.
 	 */
 
+	if (type == SBI_EXT_NMI_TYPE) { // Use a vendor-specific error type
+
+	pr_info("EINJ: Triggering XiangShan NMI test via SBI\n");
+
+       // Call SBI extension
+	struct sbiret ret = sbi_ecall(SBI_EXT_XS_NMI_TEST, param1, 0, 0, 0, 0, 0, 0);
+      	if (ret.error) {
+        	pr_err("EINJ: SBI NMI test failed: %ld\n", ret.error);
+         	return -EIO;
+    		}
+	}
+
+
 	/* ensure param1/param2 existed */
 	if (!(param_extension || acpi5))
 		goto inject;
@@ -1046,7 +1063,7 @@ static int __init einj_probe(struct faux_device *fdev)
 	status = acpi_get_table(ACPI_SIG_EINJ, 0,
 				(struct acpi_table_header **)&einj_tab);
 	if (status == AE_NOT_FOUND) {
-		pr_debug("EINJ table not found.\n");
+		pr_err("EINJ table not found.\n");
 		return -ENODEV;
 	} else if (ACPI_FAILURE(status)) {
 		pr_err("Failed to get EINJ table: %s\n",
@@ -1176,7 +1193,7 @@ static struct faux_device_ops einj_device_ops = {
 static int __init einj_init(void)
 {
 	if (acpi_disabled) {
-		pr_debug("ACPI disabled.\n");
+		pr_err("ACPI disabled.\n");
 		return -ENODEV;
 	}
 

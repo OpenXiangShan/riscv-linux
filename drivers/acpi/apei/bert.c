@@ -34,7 +34,7 @@
 #define ACPI_BERT_PRINT_MAX_RECORDS 5
 #define ACPI_BERT_PRINT_MAX_LEN 1024
 
-static int bert_disable __initdata;
+static int bert_disable __initdata = 0;
 
 /*
  * Print "all" the error records in the BERT table, but avoid huge spam to
