@@ -295,6 +295,7 @@ void __init acpi_hest_init(void)
 				(struct acpi_table_header **)&hest_tab);
 	if (status == AE_NOT_FOUND) {
 		hest_disable = HEST_NOT_FOUND;
+		pr_info(HEST_PFX "HEST_NOT_FOUND disabled.\n");
 		return;
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);

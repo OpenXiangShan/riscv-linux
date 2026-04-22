@@ -1180,6 +1180,7 @@ static void ghes_add_timer(struct ghes *ghes)
 			g->header.source_id);
 		return;
 	}
+	g->notify.poll_interval = 160000; // debug poll time.
 	expire = jiffies + msecs_to_jiffies(g->notify.poll_interval);
 	ghes->timer.expires = round_jiffies_relative(expire);
 	add_timer(&ghes->timer);

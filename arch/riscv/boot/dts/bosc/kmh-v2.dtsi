@@ -19,6 +19,24 @@
 			status = "okay";
 		};
 
+		/* 8KB for EINJ workspace */
+		einj_workspace: einj@87000000 {
+			reg = <0x0 0x87000000 0x0 0x2000>;
+			no-map;
+		};
+
+		/* 4KB for ERST workspace */
+		erst_workspace: erst@87003000 {
+			reg = <0x0 0x87003000 0x0 0x1000>;
+			no-map;
+		};
+
+		/* 8KB for ERST error log buffer */
+		error_log_buffer: error-log@87004000 {
+			reg = <0x0 0x87004000 0x0 0x2000>;
+			no-map;
+		};
+
 		/*
 		* NOTE: This region's 'reg' must exactly match the 'reg' in nvdimm_pmem node.
 		*       Mismatch will cause pmem driver failure or memory conflict.
@@ -54,6 +72,24 @@
 	    compatible = "pmem-region", "nvdimm";
 	    reg = <0x3 0xe0000000 0x0 0x80000000>;  // 2GB
 	    status = "okay";
+	};
+
+	/* Firmware-reserved APEI tables */
+	firmware {
+		einj-trigger-table {
+			compatible = "acpi,einj-trigger-table";
+			memory-region = <&einj_workspace>;
+		};
+
+		erst-trigger-table {
+			compatible = "acpi,erst-trigger-table";
+			memory-region = <&erst_workspace>;
+		};
+
+		erst-log {
+			compatible = "acpi,erst-log";
+			memory-region = <&error_log_buffer>;
+		};
 	};
 
 	cpus {

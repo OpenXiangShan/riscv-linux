@@ -125,4 +125,6 @@ obj-$(CONFIG_64BIT)		+= pi/
 obj-$(CONFIG_ACPI)		+= acpi.o
 obj-$(CONFIG_ACPI_NUMA)	+= acpi_numa.o
 
+obj-$(CONFIG_ACPI_APEI) += einj_init.o  einj_workspace.o
+
 obj-$(CONFIG_GENERIC_CPU_VULNERABILITIES) += bugs.o
