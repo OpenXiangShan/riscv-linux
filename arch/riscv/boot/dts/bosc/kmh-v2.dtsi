@@ -841,7 +841,7 @@
 		pmu {
 			compatible = "riscv,pmu";
 			riscv,event-to-mhpmcounters =
-				<0x00001 0x00000001 0x7fff9>; /* CPU_CYCLES */
+				<0x00001 0x00001 0x7fff9>; /* CPU_CYCLES */
 		};
 	};
 
