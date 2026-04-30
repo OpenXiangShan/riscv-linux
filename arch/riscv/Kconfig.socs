@@ -101,8 +101,6 @@ config SOC_CANAAN_K210
 config SOC_XIANGSHAN
 	bool "XiangShan SoCs"
 	depends on MMU
-	select PINCTRL
-	select COMMON_CLK
 	help
 	  This enables support for XiangShan SoC platform hardware
 
