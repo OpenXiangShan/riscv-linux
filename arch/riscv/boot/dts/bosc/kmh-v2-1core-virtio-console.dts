@@ -15,7 +15,7 @@
 	};
 
 	chosen {
-		bootargs = "console=hvc0 earlycon=sbi vt.nr_consoles=6";
+		bootargs = "console=hvc0 earlycon=sbi vt.nr_consoles=6 task=0x0000000000 guest_task=0x0000000000";
 		stdout-path = "/soc/my_virtio_console@31080000";
 		opensbi-config {
 		    compatible = "opensbi,config";

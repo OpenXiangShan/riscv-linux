@@ -15,7 +15,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2 pcie_aspm=off pcie_port_pm=off root=/dev/sda1 rw rootwait  radeon.si_support=0 amdgpu.si_support=1 selinux=0 ";
+		bootargs = "console=ttyS0,115200 earlycon loglevel=8 drm.debug=0x2 pcie_aspm=off pcie_port_pm=off root=/dev/sda1 rw rootwait  radeon.si_support=0 amdgpu.si_support=1 selinux=0 task=0x0000000000 guest_task=0x0000000000";
 		stdout-path = "serial0:115200n8";
 		opensbi-config {
 		    compatible = "opensbi,config";
