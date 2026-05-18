@@ -656,7 +656,7 @@
 			status = "disabled";
 		};
 
-		synps_pcie0: pcie_synps@32000000 {
+		synps_pcie0: pcie@32000000 {
 			compatible = "snps,dw-pcie";
 			reg = <0x0 0x32000000 0x0 0x8000000>,
 				<0x0 0x6fff0000 0x0 0x0010000>;
@@ -670,9 +670,6 @@
 
 			num-ib-windows = <1>;
 
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0x0 0 0 7>;
-
 			interrupt-parent = <&aplic_s>;
 			msi-parent = <&imsics_s>;
 			interrupts = <12 IRQ_TYPE_EDGE_RISING>, <13 IRQ_TYPE_EDGE_RISING>;
@@ -680,7 +677,7 @@
 			num-lanes = <1>;
 			status = "disabled";
 		};
-		synps_pcie1: pcie_synps@40000000 {
+		synps_pcie1: pcie@40000000 {
 			compatible = "snps,dw-pcie";
 			reg = <0x0 0x40000000 0x0 0x00080000>,
 			      <0x0 0x7fff0000 0x0 0x0010000>;
@@ -694,9 +691,6 @@
 
 			num-ib-windows = <1>;
 
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0x0 0 0 7>;
-
 			interrupt-parent = <&aplic_s>;
 			msi-parent = <&imsics_s>;
 			interrupts = <15 IRQ_TYPE_EDGE_RISING>, <16 IRQ_TYPE_EDGE_RISING>;
@@ -705,7 +699,7 @@
 			status = "disabled";
 		};
 
-		synps_pcie2: pcie_synps@50000000 {
+		synps_pcie2: pcie@50000000 {
 			compatible = "snps,dw-pcie";
 			reg = <0x0 0x50000000 0x0 0x8000000>,
 			      <0x0 0x6fff0000 0x0 0x0010000>,
@@ -720,9 +714,6 @@
 
 			num-ib-windows = <1>;
 
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0x0 0 0 7>;
-
 			interrupt-parent = <&aplic_s>;
 			msi-parent = <&imsics_s>;
 			interrupts = <18 IRQ_TYPE_EDGE_RISING>, <19 IRQ_TYPE_EDGE_RISING>;
@@ -731,7 +722,7 @@
 			status = "disabled";
 		};
 
-		synps_pcie3: pcie_synps@58000000 {
+		synps_pcie3: pcie@58000000 {
 			compatible = "snps,dw-pcie";
 			reg = <0x0 0x58000000 0x0 0x8000000>,
 			      <0x0 0x7fff0000 0x0 0x0010000>,
@@ -746,9 +737,6 @@
 
 			num-ib-windows = <1>;
 
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0x0 0 0 7>;
-
 			interrupt-parent = <&aplic_s>;
 			msi-parent = <&imsics_s>;
 			interrupts = <21 IRQ_TYPE_EDGE_RISING>, <22 IRQ_TYPE_EDGE_RISING>;
@@ -761,7 +749,7 @@
 			clock-frequency = <10000000>;
 			compatible = "fixed-clock";
 		};
-		xdma_0: pcie_xdma@48000000 {
+		xdma_0: pci@48000000 {
 			#address-cells = <3>;
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -792,7 +780,7 @@
 			};
 		};
 
-		xdma_1: pcie_xdma@50000000 {
+		xdma_1: pci@50000000 {
 			#address-cells = <3>;
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
