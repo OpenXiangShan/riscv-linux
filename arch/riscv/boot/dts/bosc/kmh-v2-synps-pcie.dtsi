@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023-2024 BOSC */
+
+/ {
+	soc {
+		synps_pcie0: pcie@32000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x32000000 0x0 0x8000000>,
+				<0x0 0x6fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x60000000 0x00000000 0xfff0000>,
+				 <0x03000000 0x00000040 0x00000000 0x00000040 0x00000000 0x00000002 0x0000000>;
+
+			num-ib-windows = <1>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <12 IRQ_TYPE_EDGE_RISING>, <13 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+
+		synps_pcie1: pcie@40000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x40000000 0x0 0x00080000>,
+			      <0x0 0x7fff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x70000000 0x00000000 0xfff0000>,
+				 <0x03000000 0x00000060 0x00000000 0x00000060 0x00000000 0x0000002 0x0>;
+
+			num-ib-windows = <1>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <15 IRQ_TYPE_EDGE_RISING>, <16 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+
+		synps_pcie2: pcie@50000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x50000000 0x0 0x8000000>,
+			      <0x0 0x6fff0000 0x0 0x0010000>,
+			      <0x5f 0xffff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x68000000 0x00000000 0x7ff0000>,
+				 <0x03000000 0x00000050 0x00000000 0x00000050 0x00000000 0x000000f 0xffff0000>;
+
+			num-ib-windows = <1>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <18 IRQ_TYPE_EDGE_RISING>, <19 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+
+		synps_pcie3: pcie@58000000 {
+			compatible = "snps,dw-pcie";
+			reg = <0x0 0x58000000 0x0 0x8000000>,
+			      <0x0 0x7fff0000 0x0 0x0010000>,
+			      <0x7f 0xffff0000 0x0 0x0010000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			ranges = <0x02000000 0x00000000 0x40000000 0x00000000 0x78000000 0x00000000 0x7ff0000>,
+				 <0x03000000 0x00000070 0x00000000 0x00000070 0x00000000 0x000000f 0xffff0000>;
+
+			num-ib-windows = <1>;
+
+			interrupt-parent = <&aplic_s>;
+			msi-parent = <&imsics_s>;
+			interrupts = <21 IRQ_TYPE_EDGE_RISING>, <22 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi", "hp";
+			num-lanes = <1>;
+			status = "disabled";
+		};
+	};
+};
