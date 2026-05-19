@@ -34,13 +34,6 @@
 
 	interrupts-extended = <&intc_cpu0  0xb>, <&intc_cpu0	9>;
 };
-&xdma_0 {
-	//status = "okay";
-};
-&xdma_1 {
-	//status = "okay";
-};
-
 &synps_pcie0 {
 	//status = "okay";
 };

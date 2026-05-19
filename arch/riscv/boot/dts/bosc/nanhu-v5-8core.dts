@@ -66,9 +66,3 @@
 		<&intc_cpu6  0xb>, <&intc_cpu6 	9>,
 		<&intc_cpu7  0xb>, <&intc_cpu7 	9>;
 };
-&xdma_0 {
-	status = "disabled";
-};
-&xdma_1 {
-	status = "disabled";
-};
