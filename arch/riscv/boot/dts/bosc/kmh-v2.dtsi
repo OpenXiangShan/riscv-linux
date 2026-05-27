@@ -399,7 +399,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu10: cpu@10 {
+		cpu10: cpu@a {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
@@ -429,7 +429,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu11: cpu@11 {
+		cpu11: cpu@b {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
@@ -459,7 +459,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu12: cpu@12 {
+		cpu12: cpu@c {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
@@ -489,7 +489,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu13: cpu@13 {
+		cpu13: cpu@d {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
@@ -519,7 +519,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu14: cpu@14 {
+		cpu14: cpu@e {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
@@ -549,7 +549,7 @@
 				interrupt-controller;
 			};
 		};
-		cpu15: cpu@15 {
+		cpu15: cpu@f {
 			compatible = "bosc,kmh-v2", "riscv";
 			d-cache-block-size = <64>;
 			d-cache-sets = <256>;
