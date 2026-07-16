@@ -9,6 +9,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
+#include <asm/kvm_tlb.h>
 
 struct insn_func {
 	unsigned long mask;
@@ -32,6 +33,9 @@ static int truly_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 {
 	struct kvm_cpu_trap utrap = { 0 };
 
+	if (vcpu->kvm->arch.m_mode)
+		return kvm_riscv_vcpu_mmode_trap(vcpu, EXC_INST_ILLEGAL, insn);
+
 	/* Redirect trap to Guest VCPU */
 	utrap.sepc = vcpu->arch.guest_context.sepc;
 	utrap.scause = EXC_INST_ILLEGAL;
@@ -47,6 +51,9 @@ static int truly_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			      ulong insn)
 {
 	struct kvm_cpu_trap utrap = { 0 };
+
+	if (vcpu->kvm->arch.m_mode)
+		return kvm_riscv_vcpu_mmode_trap(vcpu, EXC_INST_ILLEGAL, insn);
 
 	/* Redirect trap to Guest VCPU */
 	utrap.sepc = vcpu->arch.guest_context.sepc;
@@ -98,6 +105,35 @@ struct csr_func {
 		    unsigned long *val, unsigned long new_val,
 		    unsigned long wr_mask);
 };
+
+#define INSN_MASK_MRET		0xffffffff
+#define INSN_MATCH_MRET		0x30200073
+#define INSN_MASK_SFENCE_VMA	0xfe007fff
+#define INSN_MATCH_SFENCE_VMA	0x12000073
+#define INSN_MATCH_SINVAL_VMA	0x16000073
+
+static int mret_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
+{
+	return kvm_riscv_vcpu_mmode_mret(vcpu);
+}
+
+static int mmode_fence_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
+			    ulong insn)
+{
+	return vcpu->kvm->arch.m_mode ? KVM_INSN_CONTINUE_NEXT_SEPC :
+		KVM_INSN_ILLEGAL_TRAP;
+}
+
+static int mmode_sstage_fence_insn(struct kvm_vcpu *vcpu,
+				   struct kvm_run *run, ulong insn)
+{
+	if (!vcpu->kvm->arch.m_mode || !vcpu->arch.mmode.active)
+		return KVM_INSN_VIRTUAL_TRAP;
+
+	/* A full VS-stage flush is conservative for any rs1/rs2 operands. */
+	kvm_riscv_hfence_vvma_all_process(vcpu);
+	return KVM_INSN_CONTINUE_NEXT_SEPC;
+}
 
 static int seed_csr_rmw(struct kvm_vcpu *vcpu, unsigned int csr_num,
 			unsigned long *val, unsigned long new_val,
@@ -204,7 +240,23 @@ static int csr_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 	}
 
 	/* First try in-kernel CSR emulation */
-	if (cfn && cfn->func) {
+	if (vcpu->kvm->arch.m_mode &&
+	    (((csr_num >> 8) & 0x3) == 0x3 ||
+	     (vcpu->arch.mmode.active && (csr_num & 0xf00) == 0x100) ||
+	     (vcpu->arch.mmode.active && (csr_num & 0xf00) == 0x200) ||
+	     (vcpu->arch.mmode.active && (csr_num & 0xf00) == 0x600) ||
+	     (vcpu->arch.mmode.active && csr_num >= CSR_CYCLE &&
+	      csr_num <= CSR_INSTRET))) {
+		rc = kvm_riscv_vcpu_mmode_csr_rmw(vcpu, csr_num, &val,
+						   new_val, wr_mask);
+		if (rc == KVM_INSN_CONTINUE_NEXT_SEPC) {
+			run->riscv_csr.ret_value = val;
+			vcpu->stat.csr_exit_kernel++;
+			kvm_riscv_vcpu_csr_return(vcpu, run);
+			return KVM_INSN_CONTINUE_SAME_SEPC;
+		}
+		return rc;
+	} else if (cfn && cfn->func) {
 		rc = cfn->func(vcpu, csr_num, &val, new_val, wr_mask);
 		if (rc > KVM_INSN_EXIT_TO_USER_SPACE) {
 			if (rc == KVM_INSN_CONTINUE_NEXT_SEPC) {
@@ -227,6 +279,51 @@ static int csr_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 }
 
 static const struct insn_func system_opcode_funcs[] = {
+	{
+		.mask  = INSN_MASK_SFENCE_VMA,
+		.match = INSN_MATCH_SFENCE_VMA,
+		.func  = mmode_sstage_fence_insn,
+	},
+	{
+		.mask  = INSN_MASK_SFENCE_VMA,
+		.match = INSN_MATCH_SINVAL_VMA,
+		.func  = mmode_sstage_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x18000073, /* sfence.w.inval */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x18100073, /* sfence.inval.ir */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x22000073, /* hfence.vvma zero, zero */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x26000073, /* hinval.vvma zero, zero */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x62000073, /* hfence.gvma zero, zero */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = 0x66000073, /* hinval.gvma zero, zero */
+		.func  = mmode_fence_insn,
+	},
+	{
+		.mask  = INSN_MASK_MRET,
+		.match = INSN_MATCH_MRET,
+		.func  = mret_insn,
+	},
 	{
 		.mask  = INSN_MASK_CSRRW,
 		.match = INSN_MATCH_CSRRW,
@@ -356,6 +453,19 @@ int kvm_riscv_vcpu_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	default:
 		return truly_illegal_insn(vcpu, run, insn);
 	}
+}
+
+int kvm_riscv_vcpu_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
+				struct kvm_cpu_trap *trap)
+{
+	if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active &&
+	    trap->stval == 0x0005006b) {
+		run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+		run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
+		run->system_event.ndata = 0;
+		return KVM_INSN_EXIT_TO_USER_SPACE;
+	}
+	return kvm_riscv_vcpu_virtual_insn(vcpu, run, trap);
 }
 
 /**

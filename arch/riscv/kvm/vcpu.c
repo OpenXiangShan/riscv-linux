@@ -61,6 +61,7 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu,
 	memset(cntx, 0, sizeof(*cntx));
 	memset(csr, 0, sizeof(*csr));
 	memset(&vcpu->arch.smstateen_csr, 0, sizeof(vcpu->arch.smstateen_csr));
+	kvm_riscv_vcpu_mmode_reset(vcpu);
 
 	/* Restore datap as it's not a part of the guest context. */
 	cntx->vector.datap = vector_datap;
@@ -134,6 +135,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.ran_atleast_once = false;
 
 	vcpu->arch.cfg.hedeleg = KVM_HEDELEG_DEFAULT;
+	vcpu->arch.cfg.hideleg = KVM_HIDELEG_DEFAULT;
+	if (vcpu->kvm->arch.m_mode)
+		vcpu->arch.cfg.hedeleg &= ~BIT(EXC_INST_ILLEGAL);
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
 	bitmap_zero(vcpu->arch.isa, RISCV_ISA_EXT_MAX);
 
@@ -246,14 +250,27 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp,
 
 	if (ioctl == KVM_INTERRUPT) {
 		struct kvm_interrupt irq;
+		unsigned int irq_num;
 
 		if (copy_from_user(&irq, argp, sizeof(irq)))
 			return -EFAULT;
 
 		if (irq.irq == KVM_INTERRUPT_SET)
 			return kvm_riscv_vcpu_set_interrupt(vcpu, IRQ_VS_EXT);
-		else
+		else if (irq.irq == KVM_INTERRUPT_UNSET)
 			return kvm_riscv_vcpu_unset_interrupt(vcpu, IRQ_VS_EXT);
+
+		if (!vcpu->kvm->arch.m_mode ||
+		    (irq.irq & ~(KVM_RISCV_INTERRUPT_UNSET_FLAG |
+				 KVM_RISCV_INTERRUPT_IRQ_MASK)))
+			return -EINVAL;
+		irq_num = irq.irq & KVM_RISCV_INTERRUPT_IRQ_MASK;
+		if (irq_num >= IRQ_LOCAL_MAX ||
+		    !(BIT(irq_num) & KVM_RISCV_MMODE_IRQ_MASK))
+			return -EINVAL;
+		if (irq.irq & KVM_RISCV_INTERRUPT_UNSET_FLAG)
+			return kvm_riscv_vcpu_unset_interrupt(vcpu, irq_num);
+		return kvm_riscv_vcpu_set_interrupt(vcpu, irq_num);
 	}
 
 	return -ENOIOCTLCMD;
@@ -347,11 +364,18 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 void kvm_riscv_vcpu_flush_interrupts(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
-	unsigned long mask, val;
+	unsigned long mask, val, mmode_mask;
 
 	if (READ_ONCE(vcpu->arch.irqs_pending_mask[0])) {
 		mask = xchg_acquire(&vcpu->arch.irqs_pending_mask[0], 0);
 		val = READ_ONCE(vcpu->arch.irqs_pending[0]) & mask;
+		if (vcpu->kvm->arch.m_mode) {
+			mmode_mask = mask & KVM_RISCV_MMODE_IRQ_MASK;
+			vcpu->arch.mmode.mip &= ~mmode_mask;
+			vcpu->arch.mmode.mip |= val & mmode_mask;
+			mask &= ~mmode_mask;
+			val &= ~mmode_mask;
+		}
 
 		csr->hvip &= ~mask;
 		csr->hvip |= val;
@@ -409,7 +433,9 @@ int kvm_riscv_vcpu_set_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
 	    irq != IRQ_VS_SOFT &&
 	    irq != IRQ_VS_TIMER &&
 	    irq != IRQ_VS_EXT &&
-	    irq != IRQ_PMU_OVF)
+	    irq != IRQ_PMU_OVF &&
+	    !(vcpu->kvm->arch.m_mode &&
+	      (BIT(irq) & KVM_RISCV_MMODE_IRQ_MASK)))
 		return -EINVAL;
 
 	set_bit(irq, vcpu->arch.irqs_pending);
@@ -432,7 +458,9 @@ int kvm_riscv_vcpu_unset_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
 	    irq != IRQ_VS_SOFT &&
 	    irq != IRQ_VS_TIMER &&
 	    irq != IRQ_VS_EXT &&
-	    irq != IRQ_PMU_OVF)
+	    irq != IRQ_PMU_OVF &&
+	    !(vcpu->kvm->arch.m_mode &&
+	      (BIT(irq) & KVM_RISCV_MMODE_IRQ_MASK)))
 		return -EINVAL;
 
 	clear_bit(irq, vcpu->arch.irqs_pending);
@@ -444,7 +472,14 @@ int kvm_riscv_vcpu_unset_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
 
 bool kvm_riscv_vcpu_has_interrupts(struct kvm_vcpu *vcpu, u64 mask)
 {
-	unsigned long ie;
+	unsigned long ie, mmode_ie;
+
+	if (vcpu->kvm->arch.m_mode) {
+		mmode_ie = READ_ONCE(vcpu->arch.mmode.mie) &
+			    KVM_RISCV_MMODE_IRQ_MASK & (unsigned long)mask;
+		if (READ_ONCE(vcpu->arch.irqs_pending[0]) & mmode_ie)
+			return true;
+	}
 
 	ie = ((vcpu->arch.guest_csr.vsie & VSIP_VALID_MASK)
 		<< VSIP_TO_HVIP_SHIFT) & (unsigned long)mask;
@@ -571,6 +606,9 @@ static void kvm_riscv_vcpu_setup_config(struct kvm_vcpu *vcpu)
 			cfg->hstateen0 |= SMSTATEEN0_SSTATEEN0;
 	}
 
+	if (vcpu->kvm->arch.m_mode)
+		cfg->henvcfg &= vcpu->arch.mmode.menvcfg;
+
 	if (vcpu->guest_debug)
 		cfg->hedeleg &= ~BIT(EXC_BREAKPOINT);
 }
@@ -591,6 +629,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		nacl_csr_write(nsh, CSR_VSCAUSE, csr->vscause);
 		nacl_csr_write(nsh, CSR_VSTVAL, csr->vstval);
 		nacl_csr_write(nsh, CSR_HEDELEG, cfg->hedeleg);
+		nacl_csr_write(nsh, CSR_HIDELEG, cfg->hideleg);
+		nacl_csr_write(nsh, CSR_HCOUNTEREN, cfg->hcounteren);
 		nacl_csr_write(nsh, CSR_HVIP, csr->hvip);
 		nacl_csr_write(nsh, CSR_VSATP, csr->vsatp);
 		nacl_csr_write(nsh, CSR_HENVCFG, cfg->henvcfg);
@@ -610,6 +650,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		csr_write(CSR_VSCAUSE, csr->vscause);
 		csr_write(CSR_VSTVAL, csr->vstval);
 		csr_write(CSR_HEDELEG, cfg->hedeleg);
+		csr_write(CSR_HIDELEG, cfg->hideleg);
+		csr_write(CSR_HCOUNTEREN, cfg->hcounteren);
 		csr_write(CSR_HVIP, csr->hvip);
 		csr_write(CSR_VSATP, csr->vsatp);
 		csr_write(CSR_HENVCFG, cfg->henvcfg);
@@ -952,6 +994,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/* Update HVIP CSR for current CPU */
 		kvm_riscv_update_hvip(vcpu);
 
+		if (kvm_riscv_vcpu_mmode_check_interrupt(vcpu)) {
+			vcpu->mode = OUTSIDE_GUEST_MODE;
+			local_irq_enable();
+			preempt_enable();
+			kvm_vcpu_srcu_read_lock(vcpu);
+			continue;
+		}
+
 		if (kvm_riscv_gstage_vmid_ver_changed(&vcpu->kvm->arch.vmid) ||
 		    kvm_request_pending(vcpu) ||
 		    xfer_to_guest_mode_work_pending()) {
@@ -1002,6 +1052,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		trace_kvm_exit(&trap);
 
 		preempt_enable();
+		if (vcpu->kvm->arch.m_mode)
+			cond_resched();
 
 		kvm_vcpu_srcu_read_lock(vcpu);
 

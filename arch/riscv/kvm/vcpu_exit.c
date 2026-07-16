@@ -9,8 +9,11 @@
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
 #include <asm/insn-def.h>
+#include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
+
+#define KVM_RISCV_MSTATUS_MXR	BIT(19)
 
 static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			     struct kvm_cpu_trap *trap)
@@ -130,6 +133,243 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 	return val;
 }
 
+static unsigned long mmode_mprv_hstatus(struct kvm_vcpu *vcpu)
+{
+	unsigned long hstatus = vcpu->arch.guest_context.hstatus;
+	unsigned long mpp = (vcpu->arch.mmode.mstatus & SR_MPP) >> 11;
+
+	if (mpp == KVM_RISCV_MODE_U)
+		hstatus &= ~HSTATUS_SPVP;
+	else
+		hstatus |= HSTATUS_SPVP;
+	return hstatus;
+}
+
+static unsigned long mmode_mprv_read(struct kvm_vcpu *vcpu,
+				     unsigned long guest_addr, int len,
+				     bool sign_extend,
+				     struct kvm_cpu_trap *trap)
+{
+	register unsigned long taddr asm("a0") = (unsigned long)trap;
+	register unsigned long ttmp asm("a1");
+	unsigned long flags, val = 0, vsstatus;
+	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus;
+
+	local_irq_save(flags);
+	memset(trap, 0, sizeof(*trap));
+	old_hstatus = csr_swap(CSR_HSTATUS, mmode_mprv_hstatus(vcpu));
+	old_vsatp = csr_swap(CSR_VSATP, vcpu->arch.mmode.vsatp);
+	vsstatus = csr_read(CSR_VSSTATUS) &
+		   ~(SR_SUM | KVM_RISCV_MSTATUS_MXR);
+	vsstatus |= vcpu->arch.mmode.mstatus &
+		    (SR_SUM | KVM_RISCV_MSTATUS_MXR);
+	old_vsstatus = csr_swap(CSR_VSSTATUS, vsstatus);
+	old_stvec = csr_swap(CSR_STVEC, (ulong)&__kvm_riscv_unpriv_trap);
+
+#define MMODE_MPRV_HLV(_insn) \
+	asm volatile ("add %[ttmp], %[taddr], 0\n" \
+		      _insn(%[val], %[addr]) \
+		      : [val] "=&r" (val), [taddr] "+&r" (taddr), \
+			[ttmp] "+&r" (ttmp) \
+		      : [addr] "r" (guest_addr) : "memory")
+
+	switch (len) {
+	case 1:
+		if (sign_extend)
+			MMODE_MPRV_HLV(HLV_B);
+		else
+			MMODE_MPRV_HLV(HLV_BU);
+		break;
+	case 2:
+		if (sign_extend)
+			MMODE_MPRV_HLV(HLV_H);
+		else
+			MMODE_MPRV_HLV(HLV_HU);
+		break;
+	case 4:
+		if (sign_extend)
+			MMODE_MPRV_HLV(HLV_W);
+		else
+			MMODE_MPRV_HLV(HLV_WU);
+		break;
+#ifdef CONFIG_64BIT
+	case 8:
+		MMODE_MPRV_HLV(HLV_D);
+		break;
+#endif
+	}
+
+#undef MMODE_MPRV_HLV
+
+	csr_write(CSR_STVEC, old_stvec);
+	csr_write(CSR_VSSTATUS, old_vsstatus);
+	csr_write(CSR_VSATP, old_vsatp);
+	csr_write(CSR_HSTATUS, old_hstatus);
+	local_irq_restore(flags);
+	return val;
+}
+
+static void mmode_mprv_write(struct kvm_vcpu *vcpu,
+			     unsigned long guest_addr, int len,
+			     unsigned long val, struct kvm_cpu_trap *trap)
+{
+	register unsigned long taddr asm("a0") = (unsigned long)trap;
+	register unsigned long ttmp asm("a1");
+	unsigned long flags, vsstatus;
+	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus;
+
+	local_irq_save(flags);
+	memset(trap, 0, sizeof(*trap));
+	old_hstatus = csr_swap(CSR_HSTATUS, mmode_mprv_hstatus(vcpu));
+	old_vsatp = csr_swap(CSR_VSATP, vcpu->arch.mmode.vsatp);
+	vsstatus = csr_read(CSR_VSSTATUS) &
+		   ~(SR_SUM | KVM_RISCV_MSTATUS_MXR);
+	vsstatus |= vcpu->arch.mmode.mstatus &
+		    (SR_SUM | KVM_RISCV_MSTATUS_MXR);
+	old_vsstatus = csr_swap(CSR_VSSTATUS, vsstatus);
+	old_stvec = csr_swap(CSR_STVEC, (ulong)&__kvm_riscv_unpriv_trap);
+
+#define MMODE_MPRV_HSV(_insn) \
+	asm volatile ("add %[ttmp], %[taddr], 0\n" \
+		      _insn(%[val], %[addr]) \
+		      : [taddr] "+&r" (taddr), [ttmp] "+&r" (ttmp) \
+		      : [val] "r" (val), [addr] "r" (guest_addr) : "memory")
+
+	switch (len) {
+	case 1:
+		MMODE_MPRV_HSV(HSV_B);
+		break;
+	case 2:
+		MMODE_MPRV_HSV(HSV_H);
+		break;
+	case 4:
+		MMODE_MPRV_HSV(HSV_W);
+		break;
+#ifdef CONFIG_64BIT
+	case 8:
+		MMODE_MPRV_HSV(HSV_D);
+		break;
+#endif
+	}
+
+#undef MMODE_MPRV_HSV
+
+	csr_write(CSR_STVEC, old_stvec);
+	csr_write(CSR_VSSTATUS, old_vsstatus);
+	csr_write(CSR_VSATP, old_vsatp);
+	csr_write(CSR_HSTATUS, old_hstatus);
+	local_irq_restore(flags);
+}
+
+static int mmode_mprv_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
+			    struct kvm_cpu_trap *trap)
+{
+	struct kvm_cpu_context *ct = &vcpu->arch.guest_context;
+	struct kvm_cpu_trap utrap = { 0 }, access_trap = { 0 };
+	unsigned long fault_addr, insn, val = 0;
+	bool load = false, sign_extend = false;
+	int len = 0, insn_len;
+
+	insn = kvm_riscv_vcpu_unpriv_read(vcpu, true, ct->sepc, &utrap);
+	if (utrap.scause) {
+		if (utrap.scause == EXC_INST_GUEST_PAGE_FAULT)
+			return gstage_page_fault(vcpu, run, &utrap);
+		return kvm_riscv_vcpu_mmode_trap(vcpu, utrap.scause,
+						   utrap.stval);
+	}
+	insn_len = INSN_LEN(insn);
+
+	if ((insn & INSN_MASK_LB) == INSN_MATCH_LB) {
+		load = sign_extend = true;
+		len = 1;
+	} else if ((insn & INSN_MASK_LBU) == INSN_MATCH_LBU) {
+		load = true;
+		len = 1;
+	} else if ((insn & INSN_MASK_LH) == INSN_MATCH_LH) {
+		load = sign_extend = true;
+		len = 2;
+	} else if ((insn & INSN_MASK_LHU) == INSN_MATCH_LHU) {
+		load = true;
+		len = 2;
+	} else if ((insn & INSN_MASK_LW) == INSN_MATCH_LW) {
+		load = sign_extend = true;
+		len = 4;
+#ifdef CONFIG_64BIT
+	} else if ((insn & INSN_MASK_LWU) == INSN_MATCH_LWU) {
+		load = true;
+		len = 4;
+	} else if ((insn & INSN_MASK_LD) == INSN_MATCH_LD) {
+		load = sign_extend = true;
+		len = 8;
+#endif
+	} else if ((insn & INSN_MASK_SB) == INSN_MATCH_SB) {
+		len = 1;
+	} else if ((insn & INSN_MASK_SH) == INSN_MATCH_SH) {
+		len = 2;
+	} else if ((insn & INSN_MASK_SW) == INSN_MATCH_SW) {
+		len = 4;
+#ifdef CONFIG_64BIT
+	} else if ((insn & INSN_MASK_SD) == INSN_MATCH_SD) {
+		len = 8;
+	} else if ((insn & INSN_MASK_C_LD) == INSN_MATCH_C_LD) {
+		load = sign_extend = true;
+		len = 8;
+		insn = RVC_RS2S(insn) << SH_RD;
+	} else if ((insn & INSN_MASK_C_LDSP) == INSN_MATCH_C_LDSP &&
+		   ((insn >> SH_RD) & 0x1f)) {
+		load = sign_extend = true;
+		len = 8;
+#endif
+	} else if ((insn & INSN_MASK_C_LW) == INSN_MATCH_C_LW) {
+		load = sign_extend = true;
+		len = 4;
+		insn = RVC_RS2S(insn) << SH_RD;
+	} else if ((insn & INSN_MASK_C_LWSP) == INSN_MATCH_C_LWSP &&
+		   ((insn >> SH_RD) & 0x1f)) {
+		load = sign_extend = true;
+		len = 4;
+#ifdef CONFIG_64BIT
+	} else if ((insn & INSN_MASK_C_SD) == INSN_MATCH_C_SD) {
+		len = 8;
+		val = GET_RS2S(insn, ct);
+	} else if ((insn & INSN_MASK_C_SDSP) == INSN_MATCH_C_SDSP) {
+		len = 8;
+		val = GET_RS2C(insn, ct);
+#endif
+	} else if ((insn & INSN_MASK_C_SW) == INSN_MATCH_C_SW) {
+		len = 4;
+		val = GET_RS2S(insn, ct);
+	} else if ((insn & INSN_MASK_C_SWSP) == INSN_MATCH_C_SWSP) {
+		len = 4;
+		val = GET_RS2C(insn, ct);
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	fault_addr = (trap->htval << 2) | (trap->stval & 0x3);
+	if (load) {
+		val = mmode_mprv_read(vcpu, fault_addr, len, sign_extend,
+				      &access_trap);
+	} else {
+		if (insn_len == 4)
+			val = GET_RS2(insn, ct);
+		mmode_mprv_write(vcpu, fault_addr, len, val, &access_trap);
+	}
+
+	if (access_trap.scause) {
+		if (access_trap.scause == EXC_LOAD_GUEST_PAGE_FAULT ||
+		    access_trap.scause == EXC_STORE_GUEST_PAGE_FAULT)
+			return gstage_page_fault(vcpu, run, &access_trap);
+		return kvm_riscv_vcpu_mmode_trap(vcpu, access_trap.scause,
+						   access_trap.stval);
+	}
+
+	if (load)
+		SET_RD(insn, ct, val);
+	ct->sepc += insn_len;
+	return 1;
+}
+
 /**
  * kvm_riscv_vcpu_trap_redirect -- Redirect trap to Guest
  *
@@ -173,6 +413,10 @@ static inline int vcpu_redirect(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap
 {
 	int ret = -EFAULT;
 
+	if (vcpu->kvm->arch.m_mode)
+		return kvm_riscv_vcpu_mmode_trap(vcpu, trap->scause,
+						  trap->stval);
+
 	if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {
 		kvm_riscv_vcpu_trap_redirect(vcpu, trap);
 		ret = 1;
@@ -187,11 +431,20 @@ static inline int vcpu_redirect(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap
 int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			struct kvm_cpu_trap *trap)
 {
+	unsigned int irq;
 	int ret;
 
-	/* If we got host interrupt then do nothing */
-	if (trap->scause & CAUSE_IRQ_FLAG)
+	/* If we got host interrupt then do nothing. */
+	if (trap->scause & CAUSE_IRQ_FLAG) {
+		irq = trap->scause & ~CAUSE_IRQ_FLAG;
+		if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active &&
+		    (irq == IRQ_VS_SOFT || irq == IRQ_VS_TIMER)) {
+			kvm_riscv_vcpu_unset_interrupt(vcpu, irq);
+			vcpu->arch.guest_csr.hvip &= ~BIT(irq);
+			ncsr_write(CSR_HVIP, vcpu->arch.guest_csr.hvip);
+		}
 		return 1;
+	}
 
 	/* Handle guest traps */
 	ret = -EFAULT;
@@ -200,7 +453,10 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_INST_ILLEGAL:
 		kvm_riscv_vcpu_pmu_incr_fw(vcpu, SBI_PMU_FW_ILLEGAL_INSN);
 		vcpu->stat.instr_illegal_exits++;
-		ret = vcpu_redirect(vcpu, trap);
+		if (vcpu->kvm->arch.m_mode)
+			ret = kvm_riscv_vcpu_illegal_insn(vcpu, run, trap);
+		else
+			ret = vcpu_redirect(vcpu, trap);
 		break;
 	case EXC_LOAD_MISALIGNED:
 		kvm_riscv_vcpu_pmu_incr_fw(vcpu, SBI_PMU_FW_MISALIGNED_LOAD);
@@ -237,19 +493,30 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_INST_GUEST_PAGE_FAULT:
 	case EXC_LOAD_GUEST_PAGE_FAULT:
 	case EXC_STORE_GUEST_PAGE_FAULT:
-		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+		if (trap->scause != EXC_INST_GUEST_PAGE_FAULT &&
+		    kvm_riscv_vcpu_mmode_mprv_active(vcpu))
+			ret = mmode_mprv_fault(vcpu, run, trap);
+		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = gstage_page_fault(vcpu, run, trap);
 		break;
 	case EXC_SUPERVISOR_SYSCALL:
-		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+		if (vcpu->kvm->arch.m_mode)
+			ret = kvm_riscv_vcpu_mmode_trap(vcpu,
+					vcpu->arch.mmode.active ? 11 : 9, 0);
+		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = kvm_riscv_vcpu_sbi_ecall(vcpu, run);
 		break;
 	case EXC_SYSCALL:
 		ret = vcpu_redirect(vcpu, trap);
 		break;
 	case EXC_BREAKPOINT:
-		run->exit_reason = KVM_EXIT_DEBUG;
-		ret = 0;
+		if (vcpu->kvm->arch.m_mode && !vcpu->guest_debug)
+			ret = kvm_riscv_vcpu_mmode_trap(vcpu,
+							  EXC_BREAKPOINT, trap->stval);
+		else {
+			run->exit_reason = KVM_EXIT_DEBUG;
+			ret = 0;
+		}
 		break;
 	default:
 		break;

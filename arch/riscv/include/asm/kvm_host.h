@@ -105,6 +105,9 @@ struct kvm_arch {
 	/* KVM_CAP_RISCV_MP_STATE_RESET */
 	bool mp_state_reset;
 
+	/* KVM_CAP_RISCV_M_MODE */
+	bool m_mode;
+
 #ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
 	struct kvm_debug_print debug_print;
 #endif
@@ -175,8 +178,60 @@ struct kvm_vcpu_csr {
 struct kvm_vcpu_config {
 	u64 henvcfg;
 	u64 hstateen0;
+	unsigned long hcounteren;
 	unsigned long hedeleg;
+	unsigned long hideleg;
 };
+
+struct kvm_vcpu_mmode {
+	bool active;
+	bool vsatp_valid;
+	unsigned long vsatp;
+	unsigned long mstatus;
+	unsigned long mepc;
+	unsigned long mtvec;
+	unsigned long mscratch;
+	unsigned long mcause;
+	unsigned long mtval;
+	unsigned long medeleg;
+	unsigned long mideleg;
+	unsigned long mie;
+	unsigned long mip;
+	unsigned long menvcfg;
+	unsigned long mcounteren;
+	unsigned long mstateen0;
+	unsigned long mstateen1;
+	unsigned long mstateen2;
+	unsigned long mstateen3;
+	unsigned long mcountinhibit;
+	unsigned long scounteren;
+	unsigned long senvcfg;
+	unsigned long sstateen0;
+	unsigned long sstateen1;
+	unsigned long sstateen2;
+	unsigned long sstateen3;
+	unsigned long hstatus;
+	unsigned long hcounteren;
+	unsigned long hedeleg;
+	unsigned long hideleg;
+	unsigned long hie;
+	unsigned long hgatp;
+	unsigned long htval;
+	unsigned long htinst;
+	unsigned long htimedelta;
+	unsigned long hvip;
+	unsigned long stimecmp;
+	unsigned long vstimecmp;
+	unsigned long mtinst;
+	unsigned long mtval2;
+	unsigned long pmpcfg0;
+	unsigned long pmpcfg2;
+	unsigned long pmpaddr[16];
+};
+
+#define KVM_RISCV_MMODE_IRQ_MASK	(BIT(IRQ_M_SOFT) | \
+					 BIT(IRQ_M_TIMER) | \
+					 BIT(IRQ_M_EXT))
 
 struct kvm_vcpu_smstateen_csr {
 	unsigned long sstateen0;
@@ -218,6 +273,9 @@ struct kvm_vcpu_arch {
 
 	/* CPU CSR context of Guest VCPU */
 	struct kvm_vcpu_csr guest_csr;
+
+	/* Software-emulated M-mode context */
+	struct kvm_vcpu_mmode mmode;
 
 	/* CPU Smstateen CSR context of Guest VCPU */
 	struct kvm_vcpu_smstateen_csr smstateen_csr;
@@ -299,6 +357,20 @@ static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 
 int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines);
+
+void kvm_riscv_vcpu_mmode_reset(struct kvm_vcpu *vcpu);
+void kvm_riscv_vcpu_mmode_set_active(struct kvm_vcpu *vcpu, bool active);
+bool kvm_riscv_vcpu_mmode_mprv_active(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_mmode_csr_rmw(struct kvm_vcpu *vcpu,
+					 unsigned int csr_num,
+					 unsigned long *val,
+					 unsigned long new_val,
+					 unsigned long wr_mask);
+int kvm_riscv_vcpu_mmode_mret(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_mmode_trap(struct kvm_vcpu *vcpu,
+				      unsigned long cause,
+				      unsigned long tval);
+int kvm_riscv_vcpu_mmode_check_interrupt(struct kvm_vcpu *vcpu);
 
 void __kvm_riscv_unpriv_trap(void);
 

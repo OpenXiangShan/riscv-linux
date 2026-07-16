@@ -451,9 +451,13 @@ static int kvm_riscv_vcpu_get_reg_core(struct kvm_vcpu *vcpu,
 	else if (KVM_REG_RISCV_CORE_REG(regs.pc) < reg_num &&
 		 reg_num <= KVM_REG_RISCV_CORE_REG(regs.t6))
 		reg_val = ((unsigned long *)cntx)[reg_num];
-	else if (reg_num == KVM_REG_RISCV_CORE_REG(mode))
-		reg_val = (cntx->sstatus & SR_SPP) ?
-				KVM_RISCV_MODE_S : KVM_RISCV_MODE_U;
+	else if (reg_num == KVM_REG_RISCV_CORE_REG(mode)) {
+		if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active)
+			reg_val = KVM_RISCV_MODE_M;
+		else
+			reg_val = (cntx->sstatus & SR_SPP) ?
+					KVM_RISCV_MODE_S : KVM_RISCV_MODE_U;
+	}
 	else
 		return -ENOENT;
 
@@ -488,10 +492,20 @@ static int kvm_riscv_vcpu_set_reg_core(struct kvm_vcpu *vcpu,
 		 reg_num <= KVM_REG_RISCV_CORE_REG(regs.t6))
 		((unsigned long *)cntx)[reg_num] = reg_val;
 	else if (reg_num == KVM_REG_RISCV_CORE_REG(mode)) {
-		if (reg_val == KVM_RISCV_MODE_S)
+		if (reg_val == KVM_RISCV_MODE_M) {
+			if (!vcpu->kvm->arch.m_mode)
+				return -EINVAL;
+			kvm_riscv_vcpu_mmode_set_active(vcpu, true);
 			cntx->sstatus |= SR_SPP;
-		else
+		} else if (reg_val == KVM_RISCV_MODE_S) {
+			kvm_riscv_vcpu_mmode_set_active(vcpu, false);
+			cntx->sstatus |= SR_SPP;
+		} else if (reg_val == KVM_RISCV_MODE_U) {
+			kvm_riscv_vcpu_mmode_set_active(vcpu, false);
 			cntx->sstatus &= ~SR_SPP;
+		} else {
+			return -EINVAL;
+		}
 	} else
 		return -ENOENT;
 

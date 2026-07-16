@@ -199,10 +199,46 @@
 	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(52),		\
 	       RD(dest), RS1(addr), __RS2(0))
 
+#define HLV_B(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(48),		\
+	       RD(dest), RS1(addr), __RS2(0))
+
+#define HLV_BU(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(48),		\
+	       RD(dest), RS1(addr), __RS2(1))
+
+#define HLV_H(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(50),		\
+	       RD(dest), RS1(addr), __RS2(0))
+
+#define HLV_HU(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(50),		\
+	       RD(dest), RS1(addr), __RS2(1))
+
+#define HLV_WU(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(52),		\
+	       RD(dest), RS1(addr), __RS2(1))
+
+#define HSV_B(src, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(49),		\
+	       __RD(0), RS1(addr), RS2(src))
+
+#define HSV_H(src, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(51),		\
+	       __RD(0), RS1(addr), RS2(src))
+
+#define HSV_W(src, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(53),		\
+	       __RD(0), RS1(addr), RS2(src))
+
 #ifdef CONFIG_64BIT
 #define HLV_D(dest, addr)					\
 	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(54),		\
 	       RD(dest), RS1(addr), __RS2(0))
+
+#define HSV_D(src, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(55),		\
+	       __RD(0), RS1(addr), RS2(src))
 #else
 #define HLV_D(dest, addr)					\
 	__ASM_STR(.error "hlv.d requires 64-bit support")

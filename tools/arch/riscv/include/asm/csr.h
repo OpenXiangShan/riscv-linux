@@ -372,6 +372,7 @@
 #define CSR_MIDELEG		0x303
 #define CSR_MIE			0x304
 #define CSR_MTVEC		0x305
+#define CSR_MCOUNTEREN		0x306
 #define CSR_MENVCFG		0x30a
 #define CSR_MENVCFGH		0x31a
 #define CSR_MSCRATCH		0x340

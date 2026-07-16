@@ -22,6 +22,11 @@
 
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
+#define KVM_RISCV_INTERRUPT_UNSET_FLAG	(1U << 31)
+#define KVM_RISCV_INTERRUPT_IRQ_MASK	0xffU
+#define KVM_RISCV_INTERRUPT_SET(irq)	((__u32)(irq))
+#define KVM_RISCV_INTERRUPT_UNSET(irq)	\
+	(KVM_RISCV_INTERRUPT_UNSET_FLAG | (__u32)(irq))
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
@@ -68,6 +73,7 @@ struct kvm_riscv_core {
 /* Possible privilege modes for kvm_riscv_core */
 #define KVM_RISCV_MODE_S	1
 #define KVM_RISCV_MODE_U	0
+#define KVM_RISCV_MODE_M	3
 
 /* General CSR registers for KVM_GET_ONE_REG and KVM_SET_ONE_REG */
 struct kvm_riscv_csr {
@@ -335,12 +341,10 @@ struct kvm_riscv_sbi_fwft {
 #define KVM_DEV_RISCV_AIA_CONFIG_HART_BITS	5
 #define KVM_DEV_RISCV_AIA_CONFIG_GUEST_BITS	6
 
-#ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
 #define KVM_DEV_RISCV_DEBUG_PRINT_GRP_ADDR	1
 #define KVM_DEV_RISCV_DEBUG_PRINT_GRP_CTRL	2
 #define KVM_DEV_RISCV_DEBUG_PRINT_CTRL_INIT	0
 #define KVM_DEV_RISCV_DEBUG_PRINT_GRP_ADDR_SIZE	3
-#endif
 
 /*
  * Modes of RISC-V AIA device:
