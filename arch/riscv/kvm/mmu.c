@@ -16,6 +16,33 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
 
+static void __kvm_riscv_nested_mmu_flush(struct kvm_vcpu *vcpu,
+					 bool may_block)
+{
+	struct kvm_gstage gstage;
+
+	if (!vcpu->arch.hmode.pgd)
+		return;
+	gstage.kvm = vcpu->kvm;
+	gstage.flags = 0;
+	gstage.vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid);
+	gstage.pgd = vcpu->arch.hmode.pgd;
+	kvm_riscv_gstage_unmap_range(&gstage, 0,
+				     kvm_riscv_gstage_gpa_size, may_block);
+}
+
+static void __kvm_riscv_nested_mmu_flush_all(struct kvm *kvm,
+					     bool may_block)
+{
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
+
+	if (!kvm->arch.nested)
+		return;
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		__kvm_riscv_nested_mmu_flush(vcpu, may_block);
+}
+
 static void mmu_wp_memory_region(struct kvm *kvm, int slot)
 {
 	struct kvm_memslots *slots = kvm_memslots(kvm);
@@ -31,6 +58,7 @@ static void mmu_wp_memory_region(struct kvm *kvm, int slot)
 
 	spin_lock(&kvm->mmu_lock);
 	kvm_riscv_gstage_wp_range(&gstage, start, end);
+	__kvm_riscv_nested_mmu_flush_all(kvm, false);
 	spin_unlock(&kvm->mmu_lock);
 	kvm_flush_remote_tlbs_memslot(kvm, memslot);
 }
@@ -131,6 +159,9 @@ void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen)
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
+	spin_lock(&kvm->mmu_lock);
+	__kvm_riscv_nested_mmu_flush_all(kvm, false);
+	spin_unlock(&kvm->mmu_lock);
 	kvm_riscv_mmu_free_pgd(kvm);
 }
 
@@ -148,6 +179,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 
 	spin_lock(&kvm->mmu_lock);
 	kvm_riscv_gstage_unmap_range(&gstage, gpa, size, false);
+	__kvm_riscv_nested_mmu_flush_all(kvm, false);
 	spin_unlock(&kvm->mmu_lock);
 }
 
@@ -253,6 +285,8 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 	kvm_riscv_gstage_unmap_range(&gstage, range->start << PAGE_SHIFT,
 				     (range->end - range->start) << PAGE_SHIFT,
 				     range->may_block);
+	/* Composite mappings are indexed by L2 GPA, not by this source GFN. */
+	__kvm_riscv_nested_mmu_flush_all(kvm, range->may_block);
 	return false;
 }
 
@@ -302,28 +336,27 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	return pte_young(ptep_get(ptep));
 }
 
-int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
-		      gpa_t gpa, unsigned long hva, bool is_write,
-		      struct kvm_gstage_mapping *out_map)
+static int __kvm_riscv_mmu_map(struct kvm_vcpu *vcpu,
+			       struct kvm_gstage *gstage,
+			       struct kvm_memory_slot *memslot,
+			       gpa_t map_gpa, gpa_t source_gpa,
+			       unsigned long hva, bool is_write,
+			       bool force_4k, bool page_rdonly,
+			       bool page_exec,
+			       struct kvm_gstage_mapping *out_map)
 {
 	int ret;
 	kvm_pfn_t hfn;
 	bool writable;
 	short vma_pageshift;
-	gfn_t gfn = gpa >> PAGE_SHIFT;
+	gfn_t gfn = source_gpa >> PAGE_SHIFT;
 	struct vm_area_struct *vma;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_memory_cache *pcache = &vcpu->arch.mmu_page_cache;
 	bool logging = (memslot->dirty_bitmap &&
 			!(memslot->flags & KVM_MEM_READONLY)) ? true : false;
 	unsigned long vma_pagesize, mmu_seq;
-	struct kvm_gstage gstage;
 	struct page *page;
-
-	gstage.kvm = kvm;
-	gstage.flags = 0;
-	gstage.vmid = READ_ONCE(kvm->arch.vmid.vmid);
-	gstage.pgd = kvm->arch.pgd;
 
 	/* Setup initial state of output mapping */
 	memset(out_map, 0, sizeof(*out_map));
@@ -349,11 +382,11 @@ int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 	else
 		vma_pageshift = PAGE_SHIFT;
 	vma_pagesize = 1ULL << vma_pageshift;
-	if (logging || (vma->vm_flags & VM_PFNMAP))
+	if (force_4k || logging || (vma->vm_flags & VM_PFNMAP))
 		vma_pagesize = PAGE_SIZE;
 
 	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE)
-		gfn = (gpa & huge_page_mask(hstate_vma(vma))) >> PAGE_SHIFT;
+		gfn = (source_gpa & huge_page_mask(hstate_vma(vma))) >> PAGE_SHIFT;
 
 	/*
 	 * Read mmu_invalidate_seq so that KVM can detect if the results of
@@ -395,13 +428,15 @@ int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
 
-	if (writable) {
+	if (writable && !page_rdonly) {
 		mark_page_dirty_in_slot(kvm, memslot, gfn);
-		ret = kvm_riscv_gstage_map_page(&gstage, pcache, gpa, hfn << PAGE_SHIFT,
-						vma_pagesize, false, true, out_map);
+		ret = kvm_riscv_gstage_map_page(gstage, pcache, map_gpa,
+						hfn << PAGE_SHIFT, vma_pagesize,
+						false, page_exec, out_map);
 	} else {
-		ret = kvm_riscv_gstage_map_page(&gstage, pcache, gpa, hfn << PAGE_SHIFT,
-						vma_pagesize, true, true, out_map);
+		ret = kvm_riscv_gstage_map_page(gstage, pcache, map_gpa,
+						hfn << PAGE_SHIFT, vma_pagesize,
+						true, page_exec, out_map);
 	}
 
 	if (ret)
@@ -411,6 +446,39 @@ out_unlock:
 	kvm_release_faultin_page(kvm, page, ret && ret != -EEXIST, writable);
 	spin_unlock(&kvm->mmu_lock);
 	return ret;
+}
+
+int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
+		      gpa_t gpa, unsigned long hva, bool is_write,
+		      struct kvm_gstage_mapping *out_map)
+{
+	struct kvm_gstage gstage = {
+		.kvm = vcpu->kvm,
+		.vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid),
+		.pgd = vcpu->kvm->arch.pgd,
+	};
+
+	return __kvm_riscv_mmu_map(vcpu, &gstage, memslot, gpa, gpa, hva,
+				   is_write, false, false, true, out_map);
+}
+
+int kvm_riscv_mmu_map_nested(struct kvm_vcpu *vcpu,
+			     struct kvm_memory_slot *memslot,
+			     gpa_t nested_gpa, gpa_t source_gpa,
+			     unsigned long hva, bool is_write,
+			     bool page_rdonly, bool page_exec,
+			     struct kvm_gstage_mapping *out_map)
+{
+	struct kvm_gstage gstage = {
+		.kvm = vcpu->kvm,
+		.vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid),
+		.pgd = vcpu->arch.hmode.pgd,
+	};
+
+	return __kvm_riscv_mmu_map(vcpu, &gstage, memslot,
+				   nested_gpa & PAGE_MASK,
+				   source_gpa & PAGE_MASK, hva, is_write,
+				   true, page_rdonly, page_exec, out_map);
 }
 
 int kvm_riscv_mmu_alloc_pgd(struct kvm *kvm)
@@ -454,16 +522,80 @@ void kvm_riscv_mmu_free_pgd(struct kvm *kvm)
 		free_pages((unsigned long)pgd, get_order(kvm_riscv_gstage_pgd_size));
 }
 
-void kvm_riscv_mmu_update_hgatp(struct kvm_vcpu *vcpu)
+void kvm_riscv_mmu_flush(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_gstage gstage;
+
+	spin_lock(&kvm->mmu_lock);
+	if (kvm->arch.pgd) {
+		gstage.kvm = kvm;
+		gstage.flags = 0;
+		gstage.vmid = READ_ONCE(kvm->arch.vmid.vmid);
+		gstage.pgd = kvm->arch.pgd;
+		kvm_riscv_gstage_unmap_range(&gstage, 0,
+					     kvm_riscv_gstage_gpa_size, false);
+	}
+	spin_unlock(&kvm->mmu_lock);
+}
+
+unsigned long kvm_riscv_mmu_hgatp_value(struct kvm_vcpu *vcpu, bool nested)
 {
 	unsigned long hgatp = kvm_riscv_gstage_mode << HGATP_MODE_SHIFT;
 	struct kvm_arch *k = &vcpu->kvm->arch;
+	phys_addr_t pgd_phys = k->pgd_phys;
+
+	if (nested)
+		pgd_phys = vcpu->arch.hmode.pgd_phys;
 
 	hgatp |= (READ_ONCE(k->vmid.vmid) << HGATP_VMID_SHIFT) & HGATP_VMID;
-	hgatp |= (k->pgd_phys >> PAGE_SHIFT) & HGATP_PPN;
+	hgatp |= (pgd_phys >> PAGE_SHIFT) & HGATP_PPN;
+	return hgatp;
+}
+
+void kvm_riscv_mmu_update_hgatp(struct kvm_vcpu *vcpu)
+{
+	unsigned long hgatp = kvm_riscv_mmu_hgatp_value(vcpu,
+					kvm_riscv_vcpu_hmode_active(vcpu));
 
 	ncsr_write(CSR_HGATP, hgatp);
 
 	if (!kvm_riscv_gstage_vmid_bits())
 		kvm_riscv_local_hfence_gvma_all();
+}
+
+int kvm_riscv_nested_mmu_alloc(struct kvm_vcpu *vcpu)
+{
+	struct page *pgd_page;
+
+	if (!vcpu->kvm->arch.nested)
+		return 0;
+	pgd_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
+			       get_order(kvm_riscv_gstage_pgd_size));
+	if (!pgd_page)
+		return -ENOMEM;
+	vcpu->arch.hmode.pgd = page_to_virt(pgd_page);
+	vcpu->arch.hmode.pgd_phys = page_to_phys(pgd_page);
+	return 0;
+}
+
+void kvm_riscv_nested_mmu_flush(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->arch.hmode.pgd)
+		return;
+	spin_lock(&vcpu->kvm->mmu_lock);
+	__kvm_riscv_nested_mmu_flush(vcpu, false);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+}
+
+void kvm_riscv_nested_mmu_free(struct kvm_vcpu *vcpu)
+{
+	pgd_t *pgd = vcpu->arch.hmode.pgd;
+
+	if (!pgd)
+		return;
+	kvm_riscv_nested_mmu_flush(vcpu);
+	vcpu->arch.hmode.pgd = NULL;
+	vcpu->arch.hmode.pgd_phys = 0;
+	free_pages((unsigned long)pgd, get_order(kvm_riscv_gstage_pgd_size));
 }

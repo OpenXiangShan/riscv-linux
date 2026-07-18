@@ -146,11 +146,12 @@ static int kvm_riscv_vcpu_isa_check_host(unsigned long kvm_ext, unsigned long *g
 	return 0;
 }
 
-static bool kvm_riscv_vcpu_isa_enable_allowed(unsigned long ext)
+static bool kvm_riscv_vcpu_isa_enable_allowed(struct kvm_vcpu *vcpu,
+					      unsigned long ext)
 {
 	switch (ext) {
 	case KVM_RISCV_ISA_EXT_H:
-		return false;
+		return vcpu->kvm->arch.nested;
 	case KVM_RISCV_ISA_EXT_SSCOFPMF:
 		/* Sscofpmf depends on interrupt filtering defined in ssaia */
 		return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_SSAIA);
@@ -261,7 +262,7 @@ void kvm_riscv_vcpu_setup_isa(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(kvm_isa_ext_arr); i++) {
 		if (kvm_riscv_vcpu_isa_check_host(i, &guest_ext))
 			continue;
-		if (kvm_riscv_vcpu_isa_enable_allowed(i))
+		if (kvm_riscv_vcpu_isa_enable_allowed(vcpu, i))
 			set_bit(guest_ext, vcpu->arch.isa);
 	}
 }
@@ -360,7 +361,7 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 					reg_val &= ~BIT(i);
 					continue;
 				}
-				if (!kvm_riscv_vcpu_isa_enable_allowed(isa_ext))
+				if (!kvm_riscv_vcpu_isa_enable_allowed(vcpu, isa_ext))
 					if (reg_val & BIT(i))
 						reg_val &= ~BIT(i);
 				if (!kvm_riscv_vcpu_isa_disable_allowed(isa_ext))
@@ -703,7 +704,7 @@ static int riscv_vcpu_set_isa_ext_single(struct kvm_vcpu *vcpu,
 		 * extension can be disabled
 		 */
 		if (reg_val == 1 &&
-		    kvm_riscv_vcpu_isa_enable_allowed(reg_num))
+		    kvm_riscv_vcpu_isa_enable_allowed(vcpu, reg_num))
 			set_bit(guest_ext, vcpu->arch.isa);
 		else if (!reg_val &&
 			 kvm_riscv_vcpu_isa_disable_allowed(reg_num))

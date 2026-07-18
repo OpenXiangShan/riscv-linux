@@ -189,6 +189,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_IMMEDIATE_EXIT:
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_RISCV_M_MODE:
+	case KVM_CAP_RISCV_NESTED:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -226,6 +227,14 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		if (kvm->created_vcpus)
 			return -EBUSY;
 		kvm->arch.m_mode = true;
+		return 0;
+	case KVM_CAP_RISCV_NESTED:
+		if (cap->flags || cap->args[0] || cap->args[1] ||
+		    cap->args[2] || cap->args[3])
+			return -EINVAL;
+		if (kvm->created_vcpus)
+			return -EBUSY;
+		kvm->arch.nested = true;
 		return 0;
 	default:
 		return -EINVAL;

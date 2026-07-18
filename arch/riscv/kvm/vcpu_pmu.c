@@ -214,6 +214,11 @@ static int pmu_fw_ctr_read_hi(struct kvm_vcpu *vcpu, unsigned long cidx,
 	}
 
 	if (cidx >= kvm_pmu_num_counters(kvpmu) || cidx == 1) {
+		if (vcpu->kvm->arch.m_mode && cidx != 1) {
+			/* Unimplemented machine HPM counters read as zero. */
+			*out_val = 0;
+			return 0;
+		}
 		pr_warn("Invalid counter id [%ld]during read\n", cidx);
 		return -EINVAL;
 	}
@@ -252,7 +257,14 @@ static int pmu_ctr_read(struct kvm_vcpu *vcpu, unsigned long cidx,
 	} else if (pmc->perf_event) {
 		pmc->counter_val += perf_event_read_value(pmc->perf_event, &enabled, &running);
 	} else {
-		return -EINVAL;
+		/*
+		 * A software M-mode guest can read an implemented HPM counter
+		 * before configuring it through SBI.  Match the architectural
+		 * saved/reset value instead of injecting an illegal instruction
+		 * trap.
+		 */
+		if (!vcpu->kvm->arch.m_mode || cidx >= kvpmu->num_hw_ctrs)
+			return -EINVAL;
 	}
 	*out_val = pmc->counter_val;
 

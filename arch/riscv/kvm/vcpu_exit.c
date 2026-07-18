@@ -12,6 +12,7 @@
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
+#include <asm/kvm_tlb.h>
 
 #define KVM_RISCV_MSTATUS_MXR	BIT(19)
 
@@ -34,16 +35,17 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	    (trap->scause == EXC_STORE_GUEST_PAGE_FAULT && !writable)) {
 		switch (trap->scause) {
 		case EXC_LOAD_GUEST_PAGE_FAULT:
-			return kvm_riscv_vcpu_mmio_load(vcpu, run,
-							fault_addr,
-							trap->htinst);
+			ret = kvm_riscv_vcpu_mmio_load(vcpu, run, fault_addr,
+						       trap->htinst);
+			break;
 		case EXC_STORE_GUEST_PAGE_FAULT:
-			return kvm_riscv_vcpu_mmio_store(vcpu, run,
-							 fault_addr,
-							 trap->htinst);
+			ret = kvm_riscv_vcpu_mmio_store(vcpu, run, fault_addr,
+							trap->htinst);
+			break;
 		default:
 			return -EOPNOTSUPP;
 		};
+		return ret;
 	}
 
 	ret = kvm_riscv_mmu_map(vcpu, memslot, fault_addr, hva,
@@ -68,7 +70,7 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 					 unsigned long guest_addr,
 					 struct kvm_cpu_trap *trap)
 {
-	register unsigned long taddr asm("a0") = (unsigned long)trap;
+	register unsigned long taddr asm("a0");
 	register unsigned long ttmp asm("a1");
 	unsigned long flags, val, tmp, old_stvec, old_hstatus;
 
@@ -85,6 +87,7 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 		asm volatile ("\n"
 			".option push\n"
 			".option norvc\n"
+			"add %[taddr], %[trap], 0\n"
 			"add %[ttmp], %[taddr], 0\n"
 			HLVX_HU(%[val], %[addr])
 			"andi %[tmp], %[val], 3\n"
@@ -97,8 +100,9 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 			"2:\n"
 			".option pop"
 		: [val] "=&r" (val), [tmp] "=&r" (tmp),
-		  [taddr] "+&r" (taddr), [ttmp] "+&r" (ttmp),
-		  [addr] "+&r" (guest_addr) : : "memory");
+		  [taddr] "=&r" (taddr), [ttmp] "=&r" (ttmp),
+		  [addr] "+&r" (guest_addr)
+		: [trap] "r" (trap) : "memory");
 
 		if (trap->scause == EXC_LOAD_PAGE_FAULT)
 			trap->scause = EXC_INST_PAGE_FAULT;
@@ -113,6 +117,7 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 		asm volatile ("\n"
 			".option push\n"
 			".option norvc\n"
+			"add %[taddr], %[trap], 0\n"
 			"add %[ttmp], %[taddr], 0\n"
 #ifdef CONFIG_64BIT
 			HLV_D(%[val], %[addr])
@@ -121,8 +126,9 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 #endif
 			".option pop"
 		: [val] "=&r" (val),
-		  [taddr] "+&r" (taddr), [ttmp] "+&r" (ttmp)
-		: [addr] "r" (guest_addr) : "memory");
+		  [taddr] "=&r" (taddr), [ttmp] "=&r" (ttmp)
+		: [trap] "r" (trap), [addr] "r" (guest_addr)
+		: "memory");
 	}
 
 	csr_write(CSR_STVEC, old_stvec);
@@ -145,20 +151,49 @@ static unsigned long mmode_mprv_hstatus(struct kvm_vcpu *vcpu)
 	return hstatus;
 }
 
+static unsigned long mmode_mprv_vsatp(struct kvm_vcpu *vcpu)
+{
+	if (kvm_riscv_vcpu_mmode_mprv_virtual(vcpu))
+		return vcpu->arch.hmode.vs.vsatp;
+	return vcpu->arch.mmode.vsatp;
+}
+
+static unsigned long mmode_mprv_hgatp_swap(struct kvm_vcpu *vcpu)
+{
+	unsigned long hgatp;
+
+	if (!kvm_riscv_vcpu_mmode_mprv_virtual(vcpu))
+		return 0;
+	hgatp = csr_swap(CSR_HGATP,
+		kvm_riscv_mmu_hgatp_value(vcpu, true));
+	kvm_riscv_local_hfence_gvma_all();
+	return hgatp;
+}
+
+static void mmode_mprv_hgatp_restore(struct kvm_vcpu *vcpu,
+					     unsigned long hgatp)
+{
+	if (!kvm_riscv_vcpu_mmode_mprv_virtual(vcpu))
+		return;
+	csr_write(CSR_HGATP, hgatp);
+	kvm_riscv_local_hfence_gvma_all();
+}
+
 static unsigned long mmode_mprv_read(struct kvm_vcpu *vcpu,
 				     unsigned long guest_addr, int len,
 				     bool sign_extend,
 				     struct kvm_cpu_trap *trap)
 {
-	register unsigned long taddr asm("a0") = (unsigned long)trap;
+	register unsigned long taddr asm("a0");
 	register unsigned long ttmp asm("a1");
 	unsigned long flags, val = 0, vsstatus;
-	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus;
+	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus, old_hgatp;
 
 	local_irq_save(flags);
 	memset(trap, 0, sizeof(*trap));
+	old_hgatp = mmode_mprv_hgatp_swap(vcpu);
 	old_hstatus = csr_swap(CSR_HSTATUS, mmode_mprv_hstatus(vcpu));
-	old_vsatp = csr_swap(CSR_VSATP, vcpu->arch.mmode.vsatp);
+	old_vsatp = csr_swap(CSR_VSATP, mmode_mprv_vsatp(vcpu));
 	vsstatus = csr_read(CSR_VSSTATUS) &
 		   ~(SR_SUM | KVM_RISCV_MSTATUS_MXR);
 	vsstatus |= vcpu->arch.mmode.mstatus &
@@ -167,11 +202,13 @@ static unsigned long mmode_mprv_read(struct kvm_vcpu *vcpu,
 	old_stvec = csr_swap(CSR_STVEC, (ulong)&__kvm_riscv_unpriv_trap);
 
 #define MMODE_MPRV_HLV(_insn) \
-	asm volatile ("add %[ttmp], %[taddr], 0\n" \
+	asm volatile ("add %[taddr], %[trap], 0\n" \
+		      "add %[ttmp], %[taddr], 0\n" \
 		      _insn(%[val], %[addr]) \
-		      : [val] "=&r" (val), [taddr] "+&r" (taddr), \
-			[ttmp] "+&r" (ttmp) \
-		      : [addr] "r" (guest_addr) : "memory")
+		      : [val] "=&r" (val), [taddr] "=&r" (taddr), \
+			[ttmp] "=&r" (ttmp) \
+		      : [trap] "r" (trap), [addr] "r" (guest_addr) \
+		      : "memory")
 
 	switch (len) {
 	case 1:
@@ -205,6 +242,7 @@ static unsigned long mmode_mprv_read(struct kvm_vcpu *vcpu,
 	csr_write(CSR_VSSTATUS, old_vsstatus);
 	csr_write(CSR_VSATP, old_vsatp);
 	csr_write(CSR_HSTATUS, old_hstatus);
+	mmode_mprv_hgatp_restore(vcpu, old_hgatp);
 	local_irq_restore(flags);
 	return val;
 }
@@ -213,15 +251,16 @@ static void mmode_mprv_write(struct kvm_vcpu *vcpu,
 			     unsigned long guest_addr, int len,
 			     unsigned long val, struct kvm_cpu_trap *trap)
 {
-	register unsigned long taddr asm("a0") = (unsigned long)trap;
+	register unsigned long taddr asm("a0");
 	register unsigned long ttmp asm("a1");
 	unsigned long flags, vsstatus;
-	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus;
+	unsigned long old_stvec, old_hstatus, old_vsatp, old_vsstatus, old_hgatp;
 
 	local_irq_save(flags);
 	memset(trap, 0, sizeof(*trap));
+	old_hgatp = mmode_mprv_hgatp_swap(vcpu);
 	old_hstatus = csr_swap(CSR_HSTATUS, mmode_mprv_hstatus(vcpu));
-	old_vsatp = csr_swap(CSR_VSATP, vcpu->arch.mmode.vsatp);
+	old_vsatp = csr_swap(CSR_VSATP, mmode_mprv_vsatp(vcpu));
 	vsstatus = csr_read(CSR_VSSTATUS) &
 		   ~(SR_SUM | KVM_RISCV_MSTATUS_MXR);
 	vsstatus |= vcpu->arch.mmode.mstatus &
@@ -230,10 +269,13 @@ static void mmode_mprv_write(struct kvm_vcpu *vcpu,
 	old_stvec = csr_swap(CSR_STVEC, (ulong)&__kvm_riscv_unpriv_trap);
 
 #define MMODE_MPRV_HSV(_insn) \
-	asm volatile ("add %[ttmp], %[taddr], 0\n" \
+	asm volatile ("add %[taddr], %[trap], 0\n" \
+		      "add %[ttmp], %[taddr], 0\n" \
 		      _insn(%[val], %[addr]) \
-		      : [taddr] "+&r" (taddr), [ttmp] "+&r" (ttmp) \
-		      : [val] "r" (val), [addr] "r" (guest_addr) : "memory")
+		      : [taddr] "=&r" (taddr), [ttmp] "=&r" (ttmp) \
+		      : [trap] "r" (trap), [val] "r" (val), \
+			[addr] "r" (guest_addr) \
+		      : "memory")
 
 	switch (len) {
 	case 1:
@@ -258,7 +300,94 @@ static void mmode_mprv_write(struct kvm_vcpu *vcpu,
 	csr_write(CSR_VSSTATUS, old_vsstatus);
 	csr_write(CSR_VSATP, old_vsatp);
 	csr_write(CSR_HSTATUS, old_hstatus);
+	mmode_mprv_hgatp_restore(vcpu, old_hgatp);
 	local_irq_restore(flags);
+}
+
+/* PMP applies after all effective MPRV address-translation stages. */
+static int mmode_mprv_translate(struct kvm_vcpu *vcpu,
+				unsigned long gva, u8 access,
+				unsigned long *gpa)
+{
+	unsigned long satp = mmode_mprv_vsatp(vcpu), mode, table, pte, ppn;
+	unsigned long page_mask;
+	gpa_t source_gpa;
+	unsigned int levels, level;
+	int ret;
+
+	if (kvm_riscv_vcpu_mmode_mprv_virtual(vcpu)) {
+		ret = kvm_riscv_vcpu_hmode_translate(vcpu, gva,
+						      access == PMP_W, false,
+						      &source_gpa);
+		if (!ret)
+			*gpa = source_gpa;
+		return ret;
+	}
+
+	mode = satp >> SATP_MODE_SHIFT;
+	if (!mode) {
+		*gpa = gva;
+		return 0;
+	}
+
+	switch (mode) {
+	case 8: /* Sv39 */
+		levels = 3;
+		break;
+	case 9: /* Sv48 */
+		levels = 4;
+		break;
+	case 10: /* Sv57 */
+		levels = 5;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	table = (satp & SATP_PPN) << PAGE_SHIFT;
+	for (level = levels; level-- > 0;) {
+		unsigned long shift = PAGE_SHIFT + level * 9;
+		unsigned long index = (gva >> shift) & 0x1ff;
+
+		if (kvm_read_guest(vcpu->kvm, table + index * sizeof(pte),
+				   &pte, sizeof(pte)))
+			return -EFAULT;
+		if (!(pte & _PAGE_PRESENT) ||
+		    ((pte & _PAGE_WRITE) && !(pte & _PAGE_READ)))
+			return -EFAULT;
+		ppn = (pte >> _PAGE_PFN_SHIFT) & SATP_PPN;
+		if (!(pte & _PAGE_LEAF)) {
+			if (!level)
+				return -EFAULT;
+			table = ppn << PAGE_SHIFT;
+			continue;
+		}
+		page_mask = BIT_ULL(shift) - 1;
+		if ((ppn << PAGE_SHIFT) & page_mask)
+			return -EFAULT;
+		*gpa = (ppn << PAGE_SHIFT) | (gva & page_mask);
+		return 0;
+	}
+
+	return -EFAULT;
+}
+
+static bool mmode_mprv_pmp_check(struct kvm_vcpu *vcpu,
+					 unsigned long addr, unsigned long size,
+					 u8 access)
+{
+	unsigned long last, first_gpa, last_gpa;
+
+	if (!size || addr + size - 1 < addr)
+		return false;
+	last = addr + size - 1;
+	/* Let HLV/HSV report an architectural translation or access fault. */
+	if (mmode_mprv_translate(vcpu, addr, access, &first_gpa) ||
+	    mmode_mprv_translate(vcpu, last, access, &last_gpa))
+		return true;
+	if (last_gpa < first_gpa || last_gpa - first_gpa != last - addr)
+		return false;
+	return kvm_riscv_vcpu_mmode_pmp_check(vcpu, first_gpa, size, access);
 }
 
 static int mmode_mprv_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
@@ -267,15 +396,23 @@ static int mmode_mprv_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	struct kvm_cpu_context *ct = &vcpu->arch.guest_context;
 	struct kvm_cpu_trap utrap = { 0 }, access_trap = { 0 };
 	unsigned long fault_addr, insn, val = 0;
-	bool load = false, sign_extend = false;
+	bool load = false, sign_extend = false, emulate;
 	int len = 0, insn_len;
 
-	insn = kvm_riscv_vcpu_unpriv_read(vcpu, true, ct->sepc, &utrap);
-	if (utrap.scause) {
-		if (utrap.scause == EXC_INST_GUEST_PAGE_FAULT)
-			return gstage_page_fault(vcpu, run, &utrap);
-		return kvm_riscv_vcpu_mmode_trap(vcpu, utrap.scause,
-						   utrap.stval);
+	emulate = kvm_riscv_vcpu_mmode_mprv_active(vcpu);
+
+	fault_addr = (trap->htval << 2) | (trap->stval & 0x3);
+	if (trap->htinst & INSN_16BIT_MASK) {
+		/* Use the transformed faulting instruction when hardware supplied it. */
+		insn = trap->htinst | INSN_16BIT_MASK;
+	} else {
+		insn = kvm_riscv_vcpu_unpriv_read(vcpu, true, ct->sepc, &utrap);
+		if (utrap.scause) {
+			if (utrap.scause == EXC_INST_GUEST_PAGE_FAULT)
+				return gstage_page_fault(vcpu, run, &utrap);
+			return kvm_riscv_vcpu_mmode_trap(vcpu, utrap.scause,
+							   utrap.stval);
+		}
 	}
 	insn_len = INSN_LEN(insn);
 
@@ -342,11 +479,26 @@ static int mmode_mprv_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	} else if ((insn & INSN_MASK_C_SWSP) == INSN_MATCH_C_SWSP) {
 		len = 4;
 		val = GET_RS2C(insn, ct);
-	} else {
-		return -EOPNOTSUPP;
 	}
-
-	fault_addr = (trap->htval << 2) | (trap->stval & 0x3);
+	if (!len) {
+		load = trap->scause == EXC_LOAD_GUEST_PAGE_FAULT;
+		if (!(emulate ? mmode_mprv_pmp_check(vcpu, fault_addr, 1,
+						     load ? PMP_R : PMP_W) :
+			      kvm_riscv_vcpu_mmode_pmp_check(vcpu, fault_addr, 1,
+							 load ? PMP_R : PMP_W)))
+			return kvm_riscv_vcpu_mmode_trap(vcpu,
+				load ? EXC_LOAD_ACCESS : EXC_STORE_ACCESS,
+				fault_addr);
+		return gstage_page_fault(vcpu, run, trap);
+	}
+	if (!(emulate ? mmode_mprv_pmp_check(vcpu, fault_addr, len,
+						    load ? PMP_R : PMP_W) :
+		      kvm_riscv_vcpu_mmode_pmp_check(vcpu, fault_addr, len,
+						       load ? PMP_R : PMP_W)))
+		return kvm_riscv_vcpu_mmode_trap(vcpu,
+			load ? EXC_LOAD_ACCESS : EXC_STORE_ACCESS, fault_addr);
+	if (!emulate)
+		return gstage_page_fault(vcpu, run, trap);
 	if (load) {
 		val = mmode_mprv_read(vcpu, fault_addr, len, sign_extend,
 				      &access_trap);
@@ -358,12 +510,17 @@ static int mmode_mprv_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	if (access_trap.scause) {
 		if (access_trap.scause == EXC_LOAD_GUEST_PAGE_FAULT ||
-		    access_trap.scause == EXC_STORE_GUEST_PAGE_FAULT)
+		    access_trap.scause == EXC_STORE_GUEST_PAGE_FAULT) {
+			if (kvm_riscv_vcpu_mmode_mprv_virtual(vcpu))
+				return kvm_riscv_vcpu_hmode_page_fault(vcpu, run,
+								 &access_trap);
+			/* HLV/HSV may fault while walking the guest page table. */
+			access_trap.htinst = insn;
 			return gstage_page_fault(vcpu, run, &access_trap);
+		}
 		return kvm_riscv_vcpu_mmode_trap(vcpu, access_trap.scause,
 						   access_trap.stval);
 	}
-
 	if (load)
 		SET_RD(insn, ct, val);
 	ct->sepc += insn_len;
@@ -413,9 +570,13 @@ static inline int vcpu_redirect(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap
 {
 	int ret = -EFAULT;
 
-	if (vcpu->kvm->arch.m_mode)
+	if (vcpu->kvm->arch.m_mode &&
+	    !kvm_riscv_vcpu_mmode_exception_delegated(vcpu, trap->scause))
 		return kvm_riscv_vcpu_mmode_trap(vcpu, trap->scause,
 						  trap->stval);
+
+	if (kvm_riscv_vcpu_hmode_active(vcpu))
+		return kvm_riscv_vcpu_hmode_trap(vcpu, trap);
 
 	if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {
 		kvm_riscv_vcpu_trap_redirect(vcpu, trap);
@@ -487,22 +648,34 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		ret = vcpu_redirect(vcpu, trap);
 		break;
 	case EXC_VIRTUAL_INST_FAULT:
-		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+		if (kvm_riscv_vcpu_hmode_active(vcpu))
+			ret = kvm_riscv_vcpu_hmode_trap(vcpu, trap);
+		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = kvm_riscv_vcpu_virtual_insn(vcpu, run, trap);
 		break;
 	case EXC_INST_GUEST_PAGE_FAULT:
 	case EXC_LOAD_GUEST_PAGE_FAULT:
 	case EXC_STORE_GUEST_PAGE_FAULT:
-		if (trap->scause != EXC_INST_GUEST_PAGE_FAULT &&
+		if (kvm_riscv_vcpu_hmode_active(vcpu))
+			ret = kvm_riscv_vcpu_hmode_page_fault(vcpu, run, trap);
+		else if (trap->scause != EXC_INST_GUEST_PAGE_FAULT &&
 		    kvm_riscv_vcpu_mmode_mprv_active(vcpu))
 			ret = mmode_mprv_fault(vcpu, run, trap);
 		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = gstage_page_fault(vcpu, run, trap);
 		break;
 	case EXC_SUPERVISOR_SYSCALL:
-		if (vcpu->kvm->arch.m_mode)
+		if (vcpu->kvm->arch.m_mode &&
+		    !kvm_riscv_vcpu_hmode_active(vcpu))
 			ret = kvm_riscv_vcpu_mmode_trap(vcpu,
 					vcpu->arch.mmode.active ? 11 : 9, 0);
+		else if (vcpu->kvm->arch.m_mode &&
+			 !kvm_riscv_vcpu_mmode_exception_delegated(
+						vcpu, trap->scause))
+			ret = kvm_riscv_vcpu_mmode_trap(vcpu,
+						      trap->scause, 0);
+		else if (kvm_riscv_vcpu_hmode_active(vcpu))
+			ret = kvm_riscv_vcpu_hmode_trap(vcpu, trap);
 		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = kvm_riscv_vcpu_sbi_ecall(vcpu, run);
 		break;
@@ -510,7 +683,9 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		ret = vcpu_redirect(vcpu, trap);
 		break;
 	case EXC_BREAKPOINT:
-		if (vcpu->kvm->arch.m_mode && !vcpu->guest_debug)
+		if (kvm_riscv_vcpu_hmode_active(vcpu))
+			ret = kvm_riscv_vcpu_hmode_trap(vcpu, trap);
+		else if (vcpu->kvm->arch.m_mode && !vcpu->guest_debug)
 			ret = kvm_riscv_vcpu_mmode_trap(vcpu,
 							  EXC_BREAKPOINT, trap->stval);
 		else {

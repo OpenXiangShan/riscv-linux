@@ -2,6 +2,7 @@
 #include <linux/kvm_host.h>
 
 #include <asm/csr.h>
+#include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
 #include <asm/timex.h>
 
@@ -11,9 +12,15 @@
 #define KVM_RISCV_CSR_MTINST		0x34a
 #define KVM_RISCV_CSR_MTVAL2		0x34b
 #define KVM_RISCV_CSR_PMPCFG2		0x3a2
+#define KVM_RISCV_CSR_MHPMCOUNTER3	0xb03
+#define KVM_RISCV_CSR_MHPMEVENT3	0x323
+#define KVM_RISCV_CSR_MHPMEVENT31	0x33f
 #define KVM_RISCV_CSR_MSTATEEN1		0x30d
 #define KVM_RISCV_CSR_MSTATEEN2		0x30e
 #define KVM_RISCV_CSR_MSTATEEN3		0x30f
+#define KVM_RISCV_CSR_HSTATEEN1		0x60d
+#define KVM_RISCV_CSR_HSTATEEN2		0x60e
+#define KVM_RISCV_CSR_HSTATEEN3		0x60f
 #define KVM_RISCV_CSR_SSTATEEN1		0x10d
 #define KVM_RISCV_CSR_SSTATEEN2		0x10e
 #define KVM_RISCV_CSR_SSTATEEN3		0x10f
@@ -31,14 +38,132 @@
 
 #define KVM_RISCV_MIP_S_MASK		(BIT(IRQ_S_SOFT) | \
 					 BIT(IRQ_S_TIMER) | BIT(IRQ_S_EXT))
-#define KVM_RISCV_MIDELEG_MASK		KVM_RISCV_MIP_S_MASK
-#define KVM_RISCV_MEDELEG_MASK		(GENMASK(23, 0) & \
-					 ~BIT(9) & ~BIT(11))
+#define KVM_RISCV_MIDELEG_MASK		0x3666UL
+#define KVM_RISCV_MCOUNTINHIBIT_MASK	~BIT(1)
+/* Match the architectural/QEMU delegable exception set. */
+#define KVM_RISCV_MEDELEG_MASK		(BIT(EXC_INST_MISALIGNED) | \
+					 BIT(EXC_INST_ACCESS) | \
+					 BIT(EXC_INST_ILLEGAL) | \
+					 BIT(EXC_BREAKPOINT) | \
+					 BIT(EXC_LOAD_MISALIGNED) | \
+					 BIT(EXC_LOAD_ACCESS) | \
+					 BIT(EXC_STORE_MISALIGNED) | \
+					 BIT(EXC_STORE_ACCESS) | \
+					 BIT(EXC_SYSCALL) | BIT(EXC_HYPERVISOR_SYSCALL) | \
+					 BIT(EXC_SUPERVISOR_SYSCALL) | BIT(19) | \
+					 BIT(EXC_INST_PAGE_FAULT) | \
+					 BIT(EXC_LOAD_PAGE_FAULT) | \
+					 BIT(EXC_STORE_PAGE_FAULT) | BIT(18) | \
+					 BIT(EXC_INST_GUEST_PAGE_FAULT) | \
+					 BIT(EXC_LOAD_GUEST_PAGE_FAULT) | \
+					 BIT(EXC_VIRTUAL_INST_FAULT) | \
+					 BIT(EXC_STORE_GUEST_PAGE_FAULT))
 
 static unsigned long mmode_rmw(unsigned long old, unsigned long new_val,
 			       unsigned long wr_mask)
 {
 	return (old & ~wr_mask) | (new_val & wr_mask);
+}
+
+static u8 mmode_pmpcfg_entry(struct kvm_vcpu_mmode *m, unsigned int index)
+{
+	unsigned long cfg = index < 8 ? m->pmpcfg0 : m->pmpcfg2;
+
+	return cfg >> ((index & 7) * 8);
+}
+
+static unsigned long mmode_pmpcfg_rmw(unsigned long old,
+				      unsigned long new_val,
+				      unsigned long wr_mask)
+{
+	unsigned long value = mmode_rmw(old, new_val, wr_mask);
+	unsigned int i;
+
+	for (i = 0; i < 8; i++) {
+		unsigned int shift = i * 8;
+		unsigned long byte_mask = 0xffUL << shift;
+
+		if (old & (0x80UL << shift))
+			value = (value & ~byte_mask) | (old & byte_mask);
+	}
+
+	return value;
+}
+
+static bool mmode_pmpaddr_locked(struct kvm_vcpu_mmode *m,
+				 unsigned int index)
+{
+	u8 cfg = mmode_pmpcfg_entry(m, index);
+
+	if (cfg & PMP_L)
+		return true;
+	if (index + 1 < ARRAY_SIZE(m->pmpaddr)) {
+		cfg = mmode_pmpcfg_entry(m, index + 1);
+		if ((cfg & (PMP_L | PMP_A)) == (PMP_L | PMP_A_TOR))
+			return true;
+	}
+
+	return false;
+}
+
+bool kvm_riscv_vcpu_mmode_pmp_check(struct kvm_vcpu *vcpu,
+					    unsigned long addr,
+					    unsigned long size, u8 access)
+{
+	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
+	unsigned long last, start, end, previous = 0;
+	unsigned long mpp = (m->mstatus & SR_MPP) >>
+			    KVM_RISCV_MSTATUS_MPP_SHIFT;
+	unsigned int i;
+
+	if (!size)
+		return false;
+	last = addr + size - 1;
+	if (last < addr)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(m->pmpaddr); i++) {
+		u8 cfg = mmode_pmpcfg_entry(m, i);
+		unsigned long pmpaddr = m->pmpaddr[i];
+		bool first_match, last_match;
+
+		switch (cfg & PMP_A) {
+		case 0:
+			previous = pmpaddr;
+			continue;
+		case PMP_A_TOR:
+			if (previous >= pmpaddr) {
+				previous = pmpaddr;
+				continue;
+			}
+			start = previous << 2;
+			end = (pmpaddr << 2) - 1;
+			break;
+		case PMP_A_NA4:
+			start = pmpaddr << 2;
+			end = start + 3;
+			break;
+		case PMP_A_NAPOT:
+			pmpaddr = (pmpaddr << 2) | 0x3;
+			start = pmpaddr & (pmpaddr + 1);
+			end = pmpaddr | (pmpaddr + 1);
+			break;
+		default:
+			return false;
+		}
+		previous = m->pmpaddr[i];
+		first_match = addr >= start && addr <= end;
+		last_match = last >= start && last <= end;
+		if (first_match != last_match)
+			return false;
+		if (!first_match)
+			continue;
+		if (mpp == KVM_RISCV_MODE_M && !(cfg & PMP_L))
+			return true;
+		return (cfg & access) == access;
+	}
+
+	return mpp == KVM_RISCV_MODE_M;
 }
 
 static unsigned long mmode_misa(struct kvm_vcpu *vcpu)
@@ -61,8 +186,8 @@ static unsigned long mmode_misa(struct kvm_vcpu *vcpu)
 
 	/* S/U are implicit KVM modes and are not tracked in the ISA bitmap. */
 	misa |= KVM_RISCV_MISA_S | KVM_RISCV_MISA_U;
-	/* The software M-mode environment does not expose nested H-mode. */
-	misa &= ~BIT(RISCV_ISA_EXT_h);
+	if (!vcpu->kvm->arch.nested)
+		misa &= ~BIT(RISCV_ISA_EXT_h);
 	return misa | KVM_RISCV_MISA_MXL;
 }
 
@@ -86,27 +211,51 @@ static unsigned long mmode_supported_envcfg(struct kvm_vcpu *vcpu)
 	return supported;
 }
 
-static void mmode_sync_delegation(struct kvm_vcpu *vcpu)
+unsigned long kvm_riscv_vcpu_mmode_hedeleg(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
+	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
+	unsigned long hedeleg;
+
+	if (!vcpu->kvm->arch.m_mode || m->active)
+		return 0;
+
+	hedeleg = m->medeleg & KVM_RISCV_MEDELEG_MASK;
+	/* Physical VS is the virtual M-mode guest's S-mode outside L2. */
+	if (!kvm_riscv_vcpu_hmode_active(vcpu))
+		hedeleg &= ~BIT(EXC_SUPERVISOR_SYSCALL);
+	return hedeleg;
+}
+
+unsigned long kvm_riscv_vcpu_mmode_hideleg(struct kvm_vcpu *vcpu)
+{
 	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
 	unsigned long hideleg = 0;
 
-	if (m->active) {
-		cfg->hedeleg = 0;
-		cfg->hideleg = 0;
-	} else {
-		cfg->hedeleg = m->medeleg & KVM_RISCV_MEDELEG_MASK;
-		/* A VS ecall is an S ecall from the virtual M-mode view. */
-		cfg->hedeleg &= ~BIT(EXC_SUPERVISOR_SYSCALL);
-		if (m->mideleg & BIT(IRQ_S_SOFT))
-			hideleg |= BIT(IRQ_VS_SOFT);
-		if (m->mideleg & BIT(IRQ_S_TIMER))
-			hideleg |= BIT(IRQ_VS_TIMER);
-		if (m->mideleg & BIT(IRQ_S_EXT))
-			hideleg |= BIT(IRQ_VS_EXT);
-		cfg->hideleg = hideleg;
-	}
+	if (!vcpu->kvm->arch.m_mode || m->active)
+		return 0;
+	if (m->mideleg & BIT(IRQ_S_SOFT))
+		hideleg |= BIT(IRQ_VS_SOFT);
+	if (m->mideleg & BIT(IRQ_S_TIMER))
+		hideleg |= BIT(IRQ_VS_TIMER);
+	if (m->mideleg & BIT(IRQ_S_EXT))
+		hideleg |= BIT(IRQ_VS_EXT);
+	return hideleg;
+}
+
+unsigned long kvm_riscv_vcpu_mmode_hcounteren(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->kvm->arch.m_mode || vcpu->arch.mmode.active)
+		return 0;
+
+	return vcpu->arch.mmode.mcounteren & GENMASK(2, 0);
+}
+
+static void mmode_sync_delegation(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
+
+	cfg->hedeleg = kvm_riscv_vcpu_mmode_hedeleg(vcpu);
+	cfg->hideleg = kvm_riscv_vcpu_mmode_hideleg(vcpu);
 
 	ncsr_write(CSR_HEDELEG, cfg->hedeleg);
 	ncsr_write(CSR_HIDELEG, cfg->hideleg);
@@ -114,8 +263,8 @@ static void mmode_sync_delegation(struct kvm_vcpu *vcpu)
 
 static void mmode_sync_counteren(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.cfg.hcounteren = vcpu->arch.mmode.active ? 0 :
-		(vcpu->arch.mmode.mcounteren & GENMASK(2, 0));
+	vcpu->arch.cfg.hcounteren =
+		kvm_riscv_vcpu_mmode_hcounteren(vcpu);
 	ncsr_write(CSR_HCOUNTEREN, vcpu->arch.cfg.hcounteren);
 }
 
@@ -129,9 +278,12 @@ static void mmode_sync_mprv(struct kvm_vcpu *vcpu)
 	/*
 	 * Hardware VSATP translates both instruction and data accesses, while
 	 * architectural MPRV affects data accesses only.  Keep instruction
-	 * fetches Bare and emulate faulting MPRV loads/stores with HLV/HSV.
+	 * fetches Bare and emulate faulting MPRV loads/stores with HLV/HSV.  Drop
+	 * existing G-stage mappings when the effective privilege changes so a
+	 * previously mapped bare GPA cannot bypass the software PMP check.
 	 */
 	ncsr_write(CSR_VSATP, 0);
+	kvm_riscv_mmu_flush(vcpu);
 }
 
 static void mmode_sync_s_interrupt(struct kvm_vcpu *vcpu)
@@ -234,6 +386,25 @@ bool kvm_riscv_vcpu_mmode_mprv_active(struct kvm_vcpu *vcpu)
 	return mpp != KVM_RISCV_MODE_M;
 }
 
+bool kvm_riscv_vcpu_mmode_mprv_virtual(struct kvm_vcpu *vcpu)
+{
+	return vcpu->kvm->arch.nested &&
+		kvm_riscv_vcpu_mmode_mprv_active(vcpu) &&
+		(vcpu->arch.mmode.mstatus & KVM_RISCV_MSTATUS_MPV);
+}
+
+bool kvm_riscv_vcpu_mmode_exception_delegated(struct kvm_vcpu *vcpu,
+						       unsigned long cause)
+{
+	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
+
+	if (!vcpu->kvm->arch.m_mode || m->active ||
+	    (cause & CAUSE_IRQ_FLAG) || cause >= BITS_PER_LONG)
+		return false;
+
+	return m->medeleg & BIT(cause);
+}
+
 void kvm_riscv_vcpu_mmode_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
@@ -259,9 +430,22 @@ int kvm_riscv_vcpu_mmode_csr_rmw(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
 	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
 	unsigned long old, supported, *reg = NULL;
+	unsigned int pmp_index;
 
 	if (!m->active)
 		return KVM_INSN_ILLEGAL_TRAP;
+
+	/*
+	 * M-mode accesses H and VS CSRs directly.  Keep those CSRs in the
+	 * software nested-H banks so that entering L2 does not overwrite them
+	 * with the L1 HS bank currently installed in hardware VS CSRs.
+	 */
+	if (vcpu->kvm->arch.nested &&
+	    ((csr_num & 0xf00) == 0x200 ||
+	     (csr_num & 0xf00) == 0x600 || csr_num == CSR_HGEIP)) {
+		return kvm_riscv_vcpu_hmode_csr_rmw(vcpu, csr_num, val,
+						      new_val, wr_mask);
+	}
 
 	switch (csr_num) {
 	case CSR_MSTATUS:
@@ -325,6 +509,12 @@ int kvm_riscv_vcpu_mmode_csr_rmw(struct kvm_vcpu *vcpu,
 	case KVM_RISCV_CSR_MSTATEEN3:
 		reg = &m->mstateen3;
 		break;
+	case KVM_RISCV_CSR_MHPMCOUNTER3 ... 0xb1f:
+		reg = &m->mhpmcounter[csr_num - KVM_RISCV_CSR_MHPMCOUNTER3];
+		break;
+	case KVM_RISCV_CSR_MHPMEVENT3 ... KVM_RISCV_CSR_MHPMEVENT31:
+		reg = &m->mhpmevent[csr_num - KVM_RISCV_CSR_MHPMEVENT3];
+		break;
 	case CSR_MCOUNTINHIBIT:
 		reg = &m->mcountinhibit;
 		break;
@@ -361,6 +551,31 @@ int kvm_riscv_vcpu_mmode_csr_rmw(struct kvm_vcpu *vcpu,
 	case CSR_HTIMEDELTA:
 		reg = &m->htimedelta;
 		break;
+	case CSR_HENVCFG:
+		old = vcpu->arch.hmode.henvcfg;
+		*val = old;
+		vcpu->arch.hmode.henvcfg = mmode_rmw(old, new_val, wr_mask);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	case CSR_HSTATEEN0:
+		old = vcpu->arch.hmode.hstateen0;
+		*val = old;
+		vcpu->arch.hmode.hstateen0 = mmode_rmw(old, new_val, wr_mask);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	case KVM_RISCV_CSR_HSTATEEN1:
+		old = vcpu->arch.hmode.hstateen1;
+		*val = old;
+		vcpu->arch.hmode.hstateen1 = mmode_rmw(old, new_val, wr_mask);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	case KVM_RISCV_CSR_HSTATEEN2:
+		old = vcpu->arch.hmode.hstateen2;
+		*val = old;
+		vcpu->arch.hmode.hstateen2 = mmode_rmw(old, new_val, wr_mask);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	case KVM_RISCV_CSR_HSTATEEN3:
+		old = vcpu->arch.hmode.hstateen3;
+		*val = old;
+		vcpu->arch.hmode.hstateen3 = mmode_rmw(old, new_val, wr_mask);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
 	case CSR_HVIP:
 		reg = &m->hvip;
 		break;
@@ -487,20 +702,37 @@ int kvm_riscv_vcpu_mmode_csr_rmw(struct kvm_vcpu *vcpu,
 		mmode_vs_csr_write(csr_num, supported);
 		return KVM_INSN_CONTINUE_NEXT_SEPC;
 	case CSR_PMPCFG0:
-		reg = &m->pmpcfg0;
-		break;
+		old = m->pmpcfg0;
+		*val = old;
+		m->pmpcfg0 = mmode_pmpcfg_rmw(old, new_val, wr_mask);
+		if (old != m->pmpcfg0 && m->active)
+			kvm_riscv_mmu_flush(vcpu);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
 	case KVM_RISCV_CSR_PMPCFG2:
-		reg = &m->pmpcfg2;
-		break;
+		old = m->pmpcfg2;
+		*val = old;
+		m->pmpcfg2 = mmode_pmpcfg_rmw(old, new_val, wr_mask);
+		if (old != m->pmpcfg2 && m->active)
+			kvm_riscv_mmu_flush(vcpu);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
 	case CSR_PMPADDR0 ... CSR_PMPADDR0 + 15:
-		reg = &m->pmpaddr[csr_num - CSR_PMPADDR0];
-		break;
+		pmp_index = csr_num - CSR_PMPADDR0;
+		old = m->pmpaddr[pmp_index];
+		*val = old;
+		if (!mmode_pmpaddr_locked(m, pmp_index))
+			m->pmpaddr[pmp_index] =
+				mmode_rmw(old, new_val, wr_mask);
+		if (old != m->pmpaddr[pmp_index] && m->active)
+			kvm_riscv_mmu_flush(vcpu);
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
 	default:
 		return KVM_INSN_ILLEGAL_TRAP;
 	}
 
 	*val = *reg;
 	*reg = mmode_rmw(*reg, new_val, wr_mask);
+	if (csr_num == CSR_MCOUNTINHIBIT)
+		*reg &= KVM_RISCV_MCOUNTINHIBIT_MASK;
 	if (csr_num == CSR_MEPC)
 		m->mepc &= ~1UL;
 	if (csr_num == CSR_MTVEC && (m->mtvec & 0x3) > 1)
@@ -513,11 +745,13 @@ int kvm_riscv_vcpu_mmode_mret(struct kvm_vcpu *vcpu)
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
 	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
 	unsigned long next_mode;
+	bool next_virtual;
 
 	if (!vcpu->kvm->arch.m_mode || !m->active)
 		return KVM_INSN_ILLEGAL_TRAP;
 
 	next_mode = (m->mstatus & SR_MPP) >> KVM_RISCV_MSTATUS_MPP_SHIFT;
+	next_virtual = m->mstatus & KVM_RISCV_MSTATUS_MPV;
 	if (next_mode != KVM_RISCV_MODE_M &&
 	    next_mode != KVM_RISCV_MODE_S &&
 	    next_mode != KVM_RISCV_MODE_U)
@@ -548,6 +782,8 @@ int kvm_riscv_vcpu_mmode_mret(struct kvm_vcpu *vcpu)
 	mmode_sync_delegation(vcpu);
 	mmode_sync_counteren(vcpu);
 	mmode_sync_s_interrupt(vcpu);
+	if (!m->active && vcpu->kvm->arch.nested)
+		kvm_riscv_vcpu_hmode_set_active(vcpu, next_virtual);
 
 	return KVM_INSN_CONTINUE_SAME_SEPC;
 }
@@ -557,28 +793,35 @@ int kvm_riscv_vcpu_mmode_trap(struct kvm_vcpu *vcpu,
 				      unsigned long tval)
 {
 	struct kvm_vcpu_mmode *m = &vcpu->arch.mmode;
-	unsigned long previous_mode, vector = 0;
+	unsigned long previous_mode, trap_pc, vector = 0;
+	bool previous_virtual;
 
 	if (!vcpu->kvm->arch.m_mode)
 		return -EOPNOTSUPP;
 
+	previous_virtual = kvm_riscv_vcpu_hmode_active(vcpu);
 	previous_mode = m->active ? KVM_RISCV_MODE_M :
 		((vcpu->arch.guest_context.sstatus & SR_SPP) ?
 		 KVM_RISCV_MODE_S : KVM_RISCV_MODE_U);
+	trap_pc = vcpu->arch.guest_context.sepc;
+	if (previous_virtual)
+		kvm_riscv_vcpu_hmode_set_active(vcpu, false);
 	if (!m->active) {
 		m->vsatp = ncsr_read(CSR_VSATP);
 		m->vsatp_valid = true;
 		ncsr_write(CSR_VSATP, 0);
 	}
-	m->mepc = vcpu->arch.guest_context.sepc;
+	m->mepc = trap_pc;
 	m->mcause = cause;
 	m->mtval = tval;
 	if (m->mstatus & SR_MIE)
 		m->mstatus |= SR_MPIE;
 	else
 		m->mstatus &= ~SR_MPIE;
-	m->mstatus &= ~(SR_MPP | SR_MIE);
+	m->mstatus &= ~(SR_MPP | SR_MIE | KVM_RISCV_MSTATUS_MPV);
 	m->mstatus |= previous_mode << KVM_RISCV_MSTATUS_MPP_SHIFT;
+	if (previous_virtual)
+		m->mstatus |= KVM_RISCV_MSTATUS_MPV;
 	kvm_riscv_vcpu_mmode_set_active(vcpu, true);
 	vcpu->arch.guest_context.sstatus |= SR_SPP;
 	if ((cause & CAUSE_IRQ_FLAG) && (m->mtvec & 0x3) == 1)

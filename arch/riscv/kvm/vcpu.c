@@ -62,6 +62,7 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu,
 	memset(csr, 0, sizeof(*csr));
 	memset(&vcpu->arch.smstateen_csr, 0, sizeof(vcpu->arch.smstateen_csr));
 	kvm_riscv_vcpu_mmode_reset(vcpu);
+	kvm_riscv_vcpu_hmode_reset(vcpu);
 
 	/* Restore datap as it's not a part of the guest context. */
 	cntx->vector.datap = vector_datap;
@@ -75,6 +76,8 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu,
 	cntx->hstatus |= HSTATUS_VTW;
 	cntx->hstatus |= HSTATUS_SPVP;
 	cntx->hstatus |= HSTATUS_SPV;
+	if (vcpu->kvm->arch.nested)
+		cntx->hstatus |= HSTATUS_VTSR;
 }
 
 static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu, bool kvm_sbi_reset)
@@ -136,6 +139,8 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.cfg.hedeleg = KVM_HEDELEG_DEFAULT;
 	vcpu->arch.cfg.hideleg = KVM_HIDELEG_DEFAULT;
+	/* VS must read the time counter directly; counter 1 is not PMU-backed. */
+	vcpu->arch.cfg.hcounteren = BIT(1);
 	if (vcpu->kvm->arch.m_mode)
 		vcpu->arch.cfg.hedeleg &= ~BIT(EXC_INST_ILLEGAL);
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
@@ -143,6 +148,10 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	/* Setup ISA features available to VCPU */
 	kvm_riscv_vcpu_setup_isa(vcpu);
+
+	rc = kvm_riscv_nested_mmu_alloc(vcpu);
+	if (rc)
+		return rc;
 
 	/* Setup vendor, arch, and implementation details */
 	vcpu->arch.mvendorid = sbi_get_mvendorid();
@@ -155,8 +164,10 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	spin_lock_init(&vcpu->arch.reset_state.lock);
 
 	rc = kvm_riscv_vcpu_alloc_vector_context(vcpu);
-	if (rc)
+	if (rc) {
+		kvm_riscv_nested_mmu_free(vcpu);
 		return rc;
+	}
 
 	/* Setup VCPU timer */
 	kvm_riscv_vcpu_timer_init(vcpu);
@@ -204,6 +215,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	/* Free unused pages pre-allocated for G-stage page table mappings */
 	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
+	kvm_riscv_nested_mmu_free(vcpu);
 
 	/* Free vector context space for host and guest kernel */
 	kvm_riscv_vcpu_free_vector_context(vcpu);
@@ -396,6 +408,10 @@ void kvm_riscv_vcpu_sync_interrupts(struct kvm_vcpu *vcpu)
 
 	/* Sync-up HVIP.VSSIP bit changes does by Guest */
 	hvip = ncsr_read(CSR_HVIP);
+	if (kvm_riscv_vcpu_hmode_active(vcpu)) {
+		vcpu->arch.hmode.hvip = hvip;
+		goto sync_aia_timer;
+	}
 	if ((csr->hvip ^ hvip) & (1UL << IRQ_VS_SOFT)) {
 		if (hvip & (1UL << IRQ_VS_SOFT)) {
 			if (!test_and_set_bit(IRQ_VS_SOFT,
@@ -415,6 +431,7 @@ void kvm_riscv_vcpu_sync_interrupts(struct kvm_vcpu *vcpu)
 			clear_bit(IRQ_PMU_OVF, v->irqs_pending);
 	}
 
+sync_aia_timer:
 	/* Sync-up AIA high interrupts */
 	kvm_riscv_vcpu_aia_sync_interrupts(vcpu);
 
@@ -618,6 +635,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	void *nsh;
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
+	unsigned long hvip = kvm_riscv_vcpu_hmode_active(vcpu) ?
+			     vcpu->arch.hmode.hvip : csr->hvip;
 
 	if (kvm_riscv_nacl_sync_csr_available()) {
 		nsh = nacl_shmem();
@@ -631,7 +650,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		nacl_csr_write(nsh, CSR_HEDELEG, cfg->hedeleg);
 		nacl_csr_write(nsh, CSR_HIDELEG, cfg->hideleg);
 		nacl_csr_write(nsh, CSR_HCOUNTEREN, cfg->hcounteren);
-		nacl_csr_write(nsh, CSR_HVIP, csr->hvip);
+		nacl_csr_write(nsh, CSR_HVIP, hvip);
 		nacl_csr_write(nsh, CSR_VSATP, csr->vsatp);
 		nacl_csr_write(nsh, CSR_HENVCFG, cfg->henvcfg);
 		if (IS_ENABLED(CONFIG_32BIT))
@@ -652,7 +671,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		csr_write(CSR_HEDELEG, cfg->hedeleg);
 		csr_write(CSR_HIDELEG, cfg->hideleg);
 		csr_write(CSR_HCOUNTEREN, cfg->hcounteren);
-		csr_write(CSR_HVIP, csr->hvip);
+		csr_write(CSR_HVIP, hvip);
 		csr_write(CSR_VSATP, csr->vsatp);
 		csr_write(CSR_HENVCFG, cfg->henvcfg);
 		if (IS_ENABLED(CONFIG_32BIT))
@@ -709,7 +728,10 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 		csr->vsepc = nacl_csr_read(nsh, CSR_VSEPC);
 		csr->vscause = nacl_csr_read(nsh, CSR_VSCAUSE);
 		csr->vstval = nacl_csr_read(nsh, CSR_VSTVAL);
-		csr->hvip = nacl_csr_read(nsh, CSR_HVIP);
+		if (kvm_riscv_vcpu_hmode_active(vcpu))
+			vcpu->arch.hmode.hvip = nacl_csr_read(nsh, CSR_HVIP);
+		else
+			csr->hvip = nacl_csr_read(nsh, CSR_HVIP);
 		csr->vsatp = nacl_csr_read(nsh, CSR_VSATP);
 	} else {
 		csr->vsstatus = csr_read(CSR_VSSTATUS);
@@ -719,7 +741,10 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 		csr->vsepc = csr_read(CSR_VSEPC);
 		csr->vscause = csr_read(CSR_VSCAUSE);
 		csr->vstval = csr_read(CSR_VSTVAL);
-		csr->hvip = csr_read(CSR_HVIP);
+		if (kvm_riscv_vcpu_hmode_active(vcpu))
+			vcpu->arch.hmode.hvip = csr_read(CSR_HVIP);
+		else
+			csr->hvip = csr_read(CSR_HVIP);
 		csr->vsatp = csr_read(CSR_VSATP);
 	}
 }
@@ -782,9 +807,25 @@ static int kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 
 static void kvm_riscv_update_hvip(struct kvm_vcpu *vcpu)
 {
+	struct kvm_vcpu_aia_csr *aia = &vcpu->arch.aia_context.guest_csr;
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
+	struct kvm_vcpu_hmode *h = &vcpu->arch.hmode;
+
+	if (kvm_riscv_vcpu_hmode_active(vcpu)) {
+		ncsr_write(CSR_HVIP, h->hvip);
+		if (kvm_riscv_aia_available()) {
+			ncsr_write(CSR_HVICTL, h->hvictl);
+			ncsr_write(CSR_HVIPRIO1, h->hviprio1);
+			ncsr_write(CSR_HVIPRIO2, h->hviprio2);
+		}
+		return;
+	}
 
 	ncsr_write(CSR_HVIP, csr->hvip);
+	if (kvm_riscv_aia_available()) {
+		ncsr_write(CSR_HVIPRIO1, aia->hviprio1);
+		ncsr_write(CSR_HVIPRIO2, aia->hviprio2);
+	}
 	kvm_riscv_vcpu_aia_update_hvip(vcpu);
 }
 
@@ -994,7 +1035,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/* Update HVIP CSR for current CPU */
 		kvm_riscv_update_hvip(vcpu);
 
-		if (kvm_riscv_vcpu_mmode_check_interrupt(vcpu)) {
+		if (kvm_riscv_vcpu_hmode_check_interrupt(vcpu) ||
+		    kvm_riscv_vcpu_mmode_check_interrupt(vcpu)) {
 			vcpu->mode = OUTSIDE_GUEST_MODE;
 			local_irq_enable();
 			preempt_enable();

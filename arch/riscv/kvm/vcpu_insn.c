@@ -33,6 +33,18 @@ static int truly_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 {
 	struct kvm_cpu_trap utrap = { 0 };
 
+	if (vcpu->kvm->arch.m_mode &&
+	    !kvm_riscv_vcpu_mmode_exception_delegated(vcpu,
+						       EXC_INST_ILLEGAL))
+		return kvm_riscv_vcpu_mmode_trap(vcpu, EXC_INST_ILLEGAL, insn);
+
+	if (kvm_riscv_vcpu_hmode_active(vcpu)) {
+		utrap.sepc = vcpu->arch.guest_context.sepc;
+		utrap.scause = EXC_INST_ILLEGAL;
+		utrap.stval = insn;
+		return kvm_riscv_vcpu_hmode_trap(vcpu, &utrap);
+	}
+
 	if (vcpu->kvm->arch.m_mode)
 		return kvm_riscv_vcpu_mmode_trap(vcpu, EXC_INST_ILLEGAL, insn);
 
@@ -51,6 +63,13 @@ static int truly_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			      ulong insn)
 {
 	struct kvm_cpu_trap utrap = { 0 };
+
+	if (kvm_riscv_vcpu_hmode_active(vcpu)) {
+		utrap.sepc = vcpu->arch.guest_context.sepc;
+		utrap.scause = EXC_VIRTUAL_INST_FAULT;
+		utrap.stval = insn;
+		return kvm_riscv_vcpu_hmode_trap(vcpu, &utrap);
+	}
 
 	if (vcpu->kvm->arch.m_mode)
 		return kvm_riscv_vcpu_mmode_trap(vcpu, EXC_INST_ILLEGAL, insn);
@@ -108,20 +127,51 @@ struct csr_func {
 
 #define INSN_MASK_MRET		0xffffffff
 #define INSN_MATCH_MRET		0x30200073
+#define INSN_MASK_SRET		0xffffffff
+#define INSN_MATCH_SRET		0x10200073
 #define INSN_MASK_SFENCE_VMA	0xfe007fff
 #define INSN_MATCH_SFENCE_VMA	0x12000073
 #define INSN_MATCH_SINVAL_VMA	0x16000073
+#define INSN_MATCH_SFENCE_W_INVAL	0x18000073
+#define INSN_MATCH_SFENCE_INVAL_IR	0x18100073
 
 static int mret_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 {
 	return kvm_riscv_vcpu_mmode_mret(vcpu);
 }
 
+static int sret_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
+{
+	if (vcpu->kvm->arch.m_mode && !vcpu->arch.mmode.active &&
+	    !(vcpu->arch.guest_context.sstatus & SR_SPP))
+		return truly_illegal_insn(vcpu, run, insn);
+
+	return kvm_riscv_vcpu_hmode_sret(vcpu);
+}
+
 static int mmode_fence_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			    ulong insn)
 {
-	return vcpu->kvm->arch.m_mode ? KVM_INSN_CONTINUE_NEXT_SEPC :
-		KVM_INSN_ILLEGAL_TRAP;
+	/*
+	 * SFENCE.W.INVAL and SFENCE.INVAL.IR only order invalidation, so they
+	 * need no additional software action.  H-fences executed by emulated
+	 * M-mode still operate on the nested H/VS translation state, however.
+	 */
+	if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active &&
+	    (insn == INSN_MATCH_SFENCE_W_INVAL ||
+	     insn == INSN_MATCH_SFENCE_INVAL_IR))
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	if (vcpu->kvm->arch.nested)
+		return kvm_riscv_vcpu_hmode_fence(vcpu, insn);
+	if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active)
+		return KVM_INSN_CONTINUE_NEXT_SEPC;
+	return KVM_INSN_ILLEGAL_TRAP;
+}
+
+static int hmode_hlv_hsv_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
+			      ulong insn)
+{
+	return kvm_riscv_vcpu_hmode_hlv_hsv(vcpu, insn);
 }
 
 static int mmode_sstage_fence_insn(struct kvm_vcpu *vcpu,
@@ -256,6 +306,18 @@ static int csr_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 			return KVM_INSN_CONTINUE_SAME_SEPC;
 		}
 		return rc;
+	} else if (vcpu->kvm->arch.nested &&
+		   ((csr_num & 0xf00) == 0x200 ||
+		    (csr_num & 0xf00) == 0x600 || csr_num == CSR_HGEIP)) {
+		rc = kvm_riscv_vcpu_hmode_csr_rmw(vcpu, csr_num, &val,
+						 new_val, wr_mask);
+		if (rc == KVM_INSN_CONTINUE_NEXT_SEPC) {
+			run->riscv_csr.ret_value = val;
+			vcpu->stat.csr_exit_kernel++;
+			kvm_riscv_vcpu_csr_return(vcpu, run);
+			return KVM_INSN_CONTINUE_SAME_SEPC;
+		}
+		return rc;
 	} else if (cfn && cfn->func) {
 		rc = cfn->func(vcpu, csr_num, &val, new_val, wr_mask);
 		if (rc > KVM_INSN_EXIT_TO_USER_SPACE) {
@@ -280,6 +342,16 @@ static int csr_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 
 static const struct insn_func system_opcode_funcs[] = {
 	{
+		.mask  = 0x0000707f,
+		.match = 0x00004073,
+		.func  = hmode_hlv_hsv_insn,
+	},
+	{
+		.mask  = INSN_MASK_SRET,
+		.match = INSN_MATCH_SRET,
+		.func  = sret_insn,
+	},
+	{
 		.mask  = INSN_MASK_SFENCE_VMA,
 		.match = INSN_MATCH_SFENCE_VMA,
 		.func  = mmode_sstage_fence_insn,
@@ -287,6 +359,16 @@ static const struct insn_func system_opcode_funcs[] = {
 	{
 		.mask  = INSN_MASK_SFENCE_VMA,
 		.match = INSN_MATCH_SINVAL_VMA,
+		.func  = mmode_sstage_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = INSN_MATCH_SFENCE_W_INVAL,
+		.func  = mmode_sstage_fence_insn,
+	},
+	{
+		.mask  = 0xffffffff,
+		.match = INSN_MATCH_SFENCE_INVAL_IR,
 		.func  = mmode_sstage_fence_insn,
 	},
 	{
@@ -300,23 +382,23 @@ static const struct insn_func system_opcode_funcs[] = {
 		.func  = mmode_fence_insn,
 	},
 	{
-		.mask  = 0xffffffff,
-		.match = 0x22000073, /* hfence.vvma zero, zero */
+		.mask  = 0xfe007fff,
+		.match = 0x22000073, /* hfence.vvma */
 		.func  = mmode_fence_insn,
 	},
 	{
-		.mask  = 0xffffffff,
-		.match = 0x26000073, /* hinval.vvma zero, zero */
+		.mask  = 0xfe007fff,
+		.match = 0x26000073, /* hinval.vvma */
 		.func  = mmode_fence_insn,
 	},
 	{
-		.mask  = 0xffffffff,
-		.match = 0x62000073, /* hfence.gvma zero, zero */
+		.mask  = 0xfe007fff,
+		.match = 0x62000073, /* hfence.gvma */
 		.func  = mmode_fence_insn,
 	},
 	{
-		.mask  = 0xffffffff,
-		.match = 0x66000073, /* hinval.gvma zero, zero */
+		.mask  = 0xfe007fff,
+		.match = 0x66000073, /* hinval.gvma */
 		.func  = mmode_fence_insn,
 	},
 	{
@@ -458,8 +540,13 @@ int kvm_riscv_vcpu_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 int kvm_riscv_vcpu_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 				struct kvm_cpu_trap *trap)
 {
-	if (vcpu->kvm->arch.m_mode && vcpu->arch.mmode.active &&
-	    trap->stval == 0x0005006b) {
+	/*
+	 * Sting uses 0x5006b as its normal simulator exit instruction.  The
+	 * payload can execute it after returning to S/U (mmode.active is then
+	 * false), so recognize it for the whole software-M-mode VM rather than
+	 * redirecting it into the guest trap handler.
+	 */
+	if (vcpu->kvm->arch.m_mode && trap->stval == 0x0005006b) {
 		run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
 		run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
 		run->system_event.ndata = 0;
@@ -585,8 +672,13 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return -EOPNOTSUPP;
 	}
 
-	/* Fault address should be aligned to length of MMIO */
-	if (fault_addr & (len - 1))
+	/*
+	 * Software M-mode may deliberately probe an unaligned physical address.
+	 * Keep it as an MMIO exit so userspace applies the machine's normal
+	 * address-space semantics; returning -EIO would turn the probe into a
+	 * host-side KVM failure before the guest can observe it.
+	 */
+	if ((fault_addr & (len - 1)) && !vcpu->kvm->arch.m_mode)
 		return -EIO;
 
 	/* Save instruction decode info */
@@ -729,8 +821,8 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return -EOPNOTSUPP;
 	}
 
-	/* Fault address should be aligned to length of MMIO */
-	if (fault_addr & (len - 1))
+	/* See the load path above for software M-mode unaligned probes. */
+	if ((fault_addr & (len - 1)) && !vcpu->kvm->arch.m_mode)
 		return -EIO;
 
 	/* Save instruction decode info */

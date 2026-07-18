@@ -14,8 +14,20 @@ void kvm_riscv_mmu_iounmap(struct kvm *kvm, gpa_t gpa, unsigned long size);
 int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 		      gpa_t gpa, unsigned long hva, bool is_write,
 		      struct kvm_gstage_mapping *out_map);
+int kvm_riscv_mmu_map_nested(struct kvm_vcpu *vcpu,
+			     struct kvm_memory_slot *memslot,
+			     gpa_t nested_gpa, gpa_t source_gpa,
+			     unsigned long hva, bool is_write,
+			     bool page_rdonly, bool page_exec,
+			     struct kvm_gstage_mapping *out_map);
 int kvm_riscv_mmu_alloc_pgd(struct kvm *kvm);
 void kvm_riscv_mmu_free_pgd(struct kvm *kvm);
+void kvm_riscv_mmu_flush(struct kvm_vcpu *vcpu);
+unsigned long kvm_riscv_mmu_hgatp_value(struct kvm_vcpu *vcpu,
+						 bool nested);
 void kvm_riscv_mmu_update_hgatp(struct kvm_vcpu *vcpu);
+int kvm_riscv_nested_mmu_alloc(struct kvm_vcpu *vcpu);
+void kvm_riscv_nested_mmu_free(struct kvm_vcpu *vcpu);
+void kvm_riscv_nested_mmu_flush(struct kvm_vcpu *vcpu);
 
 #endif
