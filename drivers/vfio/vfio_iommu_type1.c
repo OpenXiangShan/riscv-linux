@@ -1991,7 +1991,7 @@ static bool vfio_iommu_has_sw_msi(struct list_head *group_resv_regions,
 		 */
 		if (region->type == IOMMU_RESV_MSI) {
 			ret = false;
-			break;
+			continue;
 		}
 
 		if (region->type == IOMMU_RESV_SW_MSI) {
