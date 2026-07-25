@@ -380,6 +380,8 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	struct kvm_cpu_trap utrap = { 0 };
 	struct kvm_cpu_context *ct = &vcpu->arch.guest_context;
 
+	vcpu->arch.mmio_decode.fp = false;
+
 	/* Determine trapped instruction */
 	if (htinst & 0x1) {
 		/*
@@ -428,6 +430,19 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		shift = 8 * (sizeof(ulong) - len);
 	} else if ((insn & INSN_MASK_LHU) == INSN_MATCH_LHU) {
 		len = 2;
+	} else if ((insn & INSN_MASK_FLW) == INSN_MATCH_FLW) {
+		len = 4;
+		shift = 8 * (sizeof(ulong) - len);
+		vcpu->arch.mmio_decode.fp = true;
+		vcpu->arch.mmio_decode.fp_reg = (insn >> SH_RD) & 0x1f;
+		kvm_riscv_vcpu_guest_fp_save(&vcpu->arch.guest_context,
+					     vcpu->arch.isa);
+	} else if ((insn & INSN_MASK_FLD) == INSN_MATCH_FLD) {
+		len = 8;
+		vcpu->arch.mmio_decode.fp = true;
+		vcpu->arch.mmio_decode.fp_reg = (insn >> SH_RD) & 0x1f;
+		kvm_riscv_vcpu_guest_fp_save(&vcpu->arch.guest_context,
+					     vcpu->arch.isa);
 #ifdef CONFIG_64BIT
 	} else if ((insn & INSN_MASK_C_LD) == INSN_MATCH_C_LD) {
 		len = 8;
@@ -536,6 +551,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	data = GET_RS2(insn, &vcpu->arch.guest_context);
 	data8 = data16 = data32 = data64 = data;
+	vcpu->arch.mmio_decode.fp = false;
 
 	if ((insn & INSN_MASK_SW) == INSN_MATCH_SW) {
 		len = 4;
@@ -547,6 +563,26 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 #endif
 	} else if ((insn & INSN_MASK_SH) == INSN_MATCH_SH) {
 		len = 2;
+	} else if ((insn & INSN_MASK_FSW) == INSN_MATCH_FSW) {
+		len = 4;
+		vcpu->arch.mmio_decode.fp = true;
+		vcpu->arch.mmio_decode.fp_reg = (insn >> SH_RS2) & 0x1f;
+		kvm_riscv_vcpu_guest_fp_save(&vcpu->arch.guest_context,
+					     vcpu->arch.isa);
+		if (riscv_isa_extension_available(vcpu->arch.isa, d))
+			data32 = vcpu->arch.guest_context.fp.d.f[
+				vcpu->arch.mmio_decode.fp_reg];
+		else
+			data32 = vcpu->arch.guest_context.fp.f.f[
+				vcpu->arch.mmio_decode.fp_reg];
+	} else if ((insn & INSN_MASK_FSD) == INSN_MATCH_FSD) {
+		len = 8;
+		vcpu->arch.mmio_decode.fp = true;
+		vcpu->arch.mmio_decode.fp_reg = (insn >> SH_RS2) & 0x1f;
+		kvm_riscv_vcpu_guest_fp_save(&vcpu->arch.guest_context,
+					     vcpu->arch.isa);
+		data64 = vcpu->arch.guest_context.fp.d.f[
+				vcpu->arch.mmio_decode.fp_reg];
 #ifdef CONFIG_64BIT
 	} else if ((insn & INSN_MASK_C_SD) == INSN_MATCH_C_SD) {
 		len = 8;
@@ -644,6 +680,30 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	len = vcpu->arch.mmio_decode.len;
 	shift = vcpu->arch.mmio_decode.shift;
+
+	if (vcpu->arch.mmio_decode.fp) {
+		if (len == 4) {
+			data32 = *((u32 *)run->mmio.data);
+			if (riscv_isa_extension_available(vcpu->arch.isa, d))
+				vcpu->arch.guest_context.fp.d.f[
+					vcpu->arch.mmio_decode.fp_reg] =
+						0xffffffff00000000ULL | data32;
+			else
+				vcpu->arch.guest_context.fp.f.f[
+					vcpu->arch.mmio_decode.fp_reg] = data32;
+		} else if (len == 8) {
+			vcpu->arch.guest_context.fp.d.f[
+				vcpu->arch.mmio_decode.fp_reg] =
+					*((u64 *)run->mmio.data);
+		} else {
+			return -EOPNOTSUPP;
+		}
+		vcpu->arch.guest_context.sstatus &= ~SR_FS;
+		vcpu->arch.guest_context.sstatus |= SR_FS_DIRTY;
+		kvm_riscv_vcpu_guest_fp_restore(&vcpu->arch.guest_context,
+						vcpu->arch.isa);
+		goto done;
+	}
 
 	switch (len) {
 	case 1:

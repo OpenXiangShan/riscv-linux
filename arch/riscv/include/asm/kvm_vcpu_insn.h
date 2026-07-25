@@ -15,6 +15,8 @@ struct kvm_mmio_decode {
 	int insn_len;
 	int len;
 	int shift;
+	bool fp;
+	unsigned int fp_reg;
 	int return_handled;
 };
 
