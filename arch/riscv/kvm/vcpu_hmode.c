@@ -8,6 +8,8 @@
 #include <asm/kvm_tlb.h>
 #include <asm/pgtable-bits.h>
 
+#include "sting_config.h"
+
 #define KVM_RISCV_HSTATUS_WRITABLE	(HSTATUS_VTSR | HSTATUS_VTW | \
 					 HSTATUS_VTVM | HSTATUS_VGEIN | \
 					 HSTATUS_HU | HSTATUS_SPVP | \
@@ -522,6 +524,9 @@ struct hmode_gstage_walk {
 	gpa_t source_gpa;
 	bool writable;
 	bool executable;
+	int level;
+	gpa_t pte_gpa;
+	u64 pte;
 };
 
 struct hmode_vsstage_walk {
@@ -540,6 +545,7 @@ static int hmode_walk_gstage(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int level, levels;
 
 	memset(walk, 0, sizeof(*walk));
+	walk->level = -1;
 	mode = h->hgatp >> HGATP_MODE_SHIFT;
 	if (mode == HGATP_MODE_OFF) {
 		walk->source_gpa = gpa;
@@ -573,9 +579,13 @@ static int hmode_walk_gstage(struct kvm_vcpu *vcpu, gpa_t gpa,
 		shift = PAGE_SHIFT + level * kvm_riscv_gstage_index_bits;
 		index = (gpa >> shift) &
 			((level == levels - 1) ? GENMASK(10, 0) : GENMASK(8, 0));
-		if (kvm_read_guest(vcpu->kvm, table + index * sizeof(pte),
+		walk->level = level;
+		walk->pte_gpa = table + index * sizeof(pte);
+		walk->pte = 0;
+		if (kvm_read_guest(vcpu->kvm, walk->pte_gpa,
 				   &pte, sizeof(pte)))
 			return -EFAULT;
+		walk->pte = pte;
 		if (!(pte & _PAGE_PRESENT) ||
 		    ((pte & _PAGE_WRITE) && !(pte & _PAGE_READ)))
 			return -EFAULT;
@@ -938,6 +948,14 @@ int kvm_riscv_vcpu_hmode_page_fault(struct kvm_vcpu *vcpu,
 		return -EOPNOTSUPP;
 
 	nested_gpa = (trap->htval << 2) | (trap->stval & 3);
+	if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED))
+		kvm_info("STING_NESTED fault pc=0x%lx cause=0x%lx tval=0x%lx htval=0x%lx htinst=0x%lx nested_gpa=0x%llx l1_hgatp=0x%lx mmode=%d hmode=%d mprv_virtual=%d\n",
+			 vcpu->arch.guest_context.sepc, trap->scause,
+			 trap->stval, trap->htval, trap->htinst,
+			 (unsigned long long)nested_gpa,
+			 vcpu->arch.hmode.hgatp, vcpu->arch.mmode.active,
+			 kvm_riscv_vcpu_hmode_active(vcpu),
+			 kvm_riscv_vcpu_mmode_mprv_virtual(vcpu));
 	if (kvm_riscv_vcpu_mmode_mprv_virtual(vcpu)) {
 		vsstatus &= ~(SR_SUM | KVM_RISCV_SSTATUS_MXR);
 		vsstatus |= vcpu->arch.mmode.mstatus &
@@ -945,8 +963,17 @@ int kvm_riscv_vcpu_hmode_page_fault(struct kvm_vcpu *vcpu,
 	}
 	ret = hmode_walk_gstage(vcpu, nested_gpa, trap->scause, vsstatus,
 				&walk);
-	if (ret)
+	if (ret) {
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED))
+			kvm_info("STING_NESTED walk failed pc=0x%lx cause=0x%lx tval=0x%lx htval=0x%lx nested_gpa=0x%llx l1_hgatp=0x%lx level=%d pte_gpa=0x%llx pte=0x%llx ret=%d action=inject_l1\n",
+				 vcpu->arch.guest_context.sepc, trap->scause,
+				 trap->stval, trap->htval,
+				 (unsigned long long)nested_gpa,
+				 vcpu->arch.hmode.hgatp, walk.level,
+				 (unsigned long long)walk.pte_gpa,
+				 (unsigned long long)walk.pte, ret);
 		return kvm_riscv_vcpu_hmode_trap(vcpu, trap);
+	}
 
 	source_gfn = walk.source_gpa >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(vcpu->kvm, source_gfn);
@@ -958,6 +985,12 @@ int kvm_riscv_vcpu_hmode_page_fault(struct kvm_vcpu *vcpu,
 			struct kvm_cpu_trap access_trap = *trap;
 
 			/* The nested walk succeeded; the source GPA is not memory. */
+			if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED))
+				kvm_info("STING_NESTED source unmapped pc=0x%lx cause=0x%lx nested_gpa=0x%llx source_gpa=0x%llx action=inject_inst_access\n",
+					 vcpu->arch.guest_context.sepc,
+					 trap->scause,
+					 (unsigned long long)nested_gpa,
+					 (unsigned long long)walk.source_gpa);
 			access_trap.scause = EXC_INST_ACCESS;
 			access_trap.htval = 0;
 			access_trap.htinst = 0;
@@ -969,21 +1002,57 @@ int kvm_riscv_vcpu_hmode_page_fault(struct kvm_vcpu *vcpu,
 			return kvm_riscv_vcpu_hmode_trap(vcpu, &access_trap);
 		}
 		case EXC_LOAD_GUEST_PAGE_FAULT:
-			return kvm_riscv_vcpu_mmio_load(vcpu, run,
-						walk.source_gpa, trap->htinst);
+			ret = kvm_riscv_vcpu_mmio_load(vcpu, run,
+						      walk.source_gpa, trap->htinst);
+			break;
 		case EXC_STORE_GUEST_PAGE_FAULT:
-			return kvm_riscv_vcpu_mmio_store(vcpu, run,
-						 walk.source_gpa, trap->htinst);
+			ret = kvm_riscv_vcpu_mmio_store(vcpu, run,
+						       walk.source_gpa, trap->htinst);
+			break;
 		default:
 			return kvm_riscv_vcpu_hmode_trap(vcpu, trap);
 		}
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED)) {
+			if (ret < 0)
+				kvm_info("STING_NESTED path=mmio failed pc=0x%lx cause=0x%lx nested_gpa=0x%llx source_gpa=0x%llx htinst=0x%lx ret=%d\n",
+					 vcpu->arch.guest_context.sepc,
+					 trap->scause,
+					 (unsigned long long)nested_gpa,
+					 (unsigned long long)walk.source_gpa,
+					 trap->htinst, ret);
+			else
+				kvm_info("STING_NESTED path=mmio pc=0x%lx cause=0x%lx nested_gpa=0x%llx source_gpa=0x%llx htinst=0x%lx ret=%d exit_reason=%u\n",
+					 vcpu->arch.guest_context.sepc,
+					 trap->scause,
+					 (unsigned long long)nested_gpa,
+					 (unsigned long long)walk.source_gpa,
+					 trap->htinst, ret, run->exit_reason);
+		}
+		return ret;
 	}
 
 	ret = kvm_riscv_mmu_map_nested(vcpu, memslot, nested_gpa,
 				       walk.source_gpa, hva,
 				       trap->scause == EXC_STORE_GUEST_PAGE_FAULT,
 				       !walk.writable, walk.executable, &host_map);
-	if (ret < 0)
+	if (ret < 0) {
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED))
+			kvm_info("STING_NESTED shadow failed pc=0x%lx cause=0x%lx nested_gpa=0x%llx source_gpa=0x%llx hva=0x%lx ret=%d\n",
+				 vcpu->arch.guest_context.sepc, trap->scause,
+				 (unsigned long long)nested_gpa,
+				 (unsigned long long)walk.source_gpa, hva, ret);
 		return ret;
+	}
+	if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_NESTED))
+		kvm_info("STING_NESTED shadow ok pc=0x%lx cause=0x%lx tval=0x%lx htval=0x%lx nested_gpa=0x%llx source_gpa=0x%llx l1_hgatp=0x%lx slot=%d hva=0x%lx pte=0x%lx level=%u writable=%d executable=%d mmode=%d hmode=%d\n",
+			 vcpu->arch.guest_context.sepc, trap->scause,
+			 trap->stval, trap->htval,
+			 (unsigned long long)nested_gpa,
+			 (unsigned long long)walk.source_gpa,
+			 vcpu->arch.hmode.hgatp, memslot->id, hva,
+			 pte_val(host_map.pte), host_map.level,
+			 walk.writable, walk.executable,
+			 vcpu->arch.mmode.active,
+			 kvm_riscv_vcpu_hmode_active(vcpu));
 	return 1;
 }

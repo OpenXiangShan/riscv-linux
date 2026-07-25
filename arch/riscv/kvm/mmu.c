@@ -16,6 +16,8 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
 
+#include "sting_config.h"
+
 static void __kvm_riscv_nested_mmu_flush(struct kvm_vcpu *vcpu,
 					 bool may_block)
 {
@@ -555,10 +557,19 @@ unsigned long kvm_riscv_mmu_hgatp_value(struct kvm_vcpu *vcpu, bool nested)
 
 void kvm_riscv_mmu_update_hgatp(struct kvm_vcpu *vcpu)
 {
-	unsigned long hgatp = kvm_riscv_mmu_hgatp_value(vcpu,
-					kvm_riscv_vcpu_hmode_active(vcpu));
+	bool nested = kvm_riscv_vcpu_hmode_active(vcpu);
+	bool log_hgatp = kvm_riscv_sting_log_enabled(
+						KVM_RISCV_STING_LOG_NESTED);
+	unsigned long old_hgatp = 0;
+	unsigned long hgatp = kvm_riscv_mmu_hgatp_value(vcpu, nested);
 
+	if (log_hgatp)
+		old_hgatp = ncsr_read(CSR_HGATP);
 	ncsr_write(CSR_HGATP, hgatp);
+	if (log_hgatp && old_hgatp != hgatp)
+		kvm_info("STING_NESTED hgatp change pc=0x%lx nested=%d old=0x%lx new=0x%lx readback=0x%lx\n",
+			 vcpu->arch.guest_context.sepc, nested, old_hgatp,
+			 hgatp, ncsr_read(CSR_HGATP));
 
 	if (!kvm_riscv_gstage_vmid_bits())
 		kvm_riscv_local_hfence_gvma_all();
