@@ -11,6 +11,7 @@
 					 KVM_RISCV_STING_LOG_GSTAGE)
 
 extern unsigned int kvm_riscv_sting_log_mask;
+extern bool kvm_riscv_sting_5006b_shutdown;
 
 static inline bool kvm_riscv_sting_log_enabled(unsigned int category)
 {

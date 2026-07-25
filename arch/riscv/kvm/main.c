@@ -22,6 +22,12 @@ module_param_named(sting_log_mask, kvm_riscv_sting_log_mask, uint, 0644);
 MODULE_PARM_DESC(sting_log_mask,
 		 "STING KVM log mask: bit0=nested, bit1=gstage");
 
+bool kvm_riscv_sting_5006b_shutdown = true;
+module_param_named(sting_5006b_shutdown,
+		   kvm_riscv_sting_5006b_shutdown, bool, 0644);
+MODULE_PARM_DESC(sting_5006b_shutdown,
+		 "Shut down a STING software M-mode VM on instruction 0x5006b");
+
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
 {

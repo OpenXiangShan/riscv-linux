@@ -11,6 +11,8 @@
 #include <asm/insn.h>
 #include <asm/kvm_tlb.h>
 
+#include "sting_config.h"
+
 struct insn_func {
 	unsigned long mask;
 	unsigned long match;
@@ -541,16 +543,20 @@ int kvm_riscv_vcpu_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 				struct kvm_cpu_trap *trap)
 {
 	/*
-	 * Sting uses 0x5006b as its normal simulator exit instruction.  The
-	 * payload can execute it after returning to S/U (mmode.active is then
-	 * false), so recognize it for the whole software-M-mode VM rather than
-	 * redirecting it into the guest trap handler.
+	 * Sting can execute 0x5006b after returning to S/U mode, so recognize
+	 * it for the whole software M-mode VM instead of checking mmode.active.
 	 */
 	if (vcpu->kvm->arch.m_mode && trap->stval == 0x0005006b) {
-		run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
-		run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
-		run->system_event.ndata = 0;
-		return KVM_INSN_EXIT_TO_USER_SPACE;
+		if (READ_ONCE(kvm_riscv_sting_5006b_shutdown)) {
+			run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+			run->system_event.type = KVM_SYSTEM_EVENT_SHUTDOWN;
+			run->system_event.ndata = 0;
+			return KVM_INSN_EXIT_TO_USER_SPACE;
+		}
+
+		/* The external UART watchdog owns completion in consume mode. */
+		vcpu->arch.guest_context.sepc += INSN_LEN(trap->stval);
+		return 1;
 	}
 	return kvm_riscv_vcpu_virtual_insn(vcpu, run, trap);
 }
