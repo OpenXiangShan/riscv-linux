@@ -380,10 +380,14 @@ static __always_inline bool riscv_insn_is_c_jalr(u32 code)
 #define INSN_MATCH_C_FSWSP	0xe002
 #define INSN_MASK_C_FSWSP	0xe003
 
+#define INSN_MATCH_C_LBU		0x8000
+#define INSN_MASK_C_LBU			0xfc03
 #define INSN_MATCH_C_LHU		0x8400
 #define INSN_MASK_C_LHU			0xfc43
 #define INSN_MATCH_C_LH			0x8440
 #define INSN_MASK_C_LH			0xfc43
+#define INSN_MATCH_C_SB			0x8800
+#define INSN_MASK_C_SB			0xfc03
 #define INSN_MATCH_C_SH			0x8c00
 #define INSN_MASK_C_SH			0xfc43
 

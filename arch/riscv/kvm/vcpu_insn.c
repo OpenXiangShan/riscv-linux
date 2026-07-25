@@ -443,6 +443,16 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		vcpu->arch.mmio_decode.fp_reg = (insn >> SH_RD) & 0x1f;
 		kvm_riscv_vcpu_guest_fp_save(&vcpu->arch.guest_context,
 					     vcpu->arch.isa);
+	} else if ((insn & INSN_MASK_C_LBU) == INSN_MATCH_C_LBU) {
+		len = 1;
+		insn = RVC_RS2S(insn) << SH_RD;
+	} else if ((insn & INSN_MASK_C_LH) == INSN_MATCH_C_LH) {
+		len = 2;
+		shift = 8 * (sizeof(ulong) - len);
+		insn = RVC_RS2S(insn) << SH_RD;
+	} else if ((insn & INSN_MASK_C_LHU) == INSN_MATCH_C_LHU) {
+		len = 2;
+		insn = RVC_RS2S(insn) << SH_RD;
 #ifdef CONFIG_64BIT
 	} else if ((insn & INSN_MASK_C_LD) == INSN_MATCH_C_LD) {
 		len = 8;
@@ -583,6 +593,12 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 					     vcpu->arch.isa);
 		data64 = vcpu->arch.guest_context.fp.d.f[
 				vcpu->arch.mmio_decode.fp_reg];
+	} else if ((insn & INSN_MASK_C_SB) == INSN_MATCH_C_SB) {
+		len = 1;
+		data8 = GET_RS2S(insn, &vcpu->arch.guest_context);
+	} else if ((insn & INSN_MASK_C_SH) == INSN_MATCH_C_SH) {
+		len = 2;
+		data16 = GET_RS2S(insn, &vcpu->arch.guest_context);
 #ifdef CONFIG_64BIT
 	} else if ((insn & INSN_MASK_C_SD) == INSN_MATCH_C_SD) {
 		len = 8;
