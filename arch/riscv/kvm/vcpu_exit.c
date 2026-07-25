@@ -14,6 +14,8 @@
 #include <asm/kvm_nacl.h>
 #include <asm/kvm_tlb.h>
 
+#include "sting_config.h"
+
 #define KVM_RISCV_MSTATUS_MXR	BIT(19)
 
 static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
@@ -45,14 +47,28 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		default:
 			return -EOPNOTSUPP;
 		};
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE))
+			kvm_info("STING_GSTAGE path=mmio pc=0x%lx cause=0x%lx gpa=0x%lx htinst=0x%lx ret=%d exit_reason=%u\n",
+				 trap->sepc, trap->scause, fault_addr,
+				 trap->htinst, ret, run->exit_reason);
 		return ret;
 	}
 
 	ret = kvm_riscv_mmu_map(vcpu, memslot, fault_addr, hva,
 				(trap->scause == EXC_STORE_GUEST_PAGE_FAULT) ? true : false,
 				&host_map);
-	if (ret < 0)
+	if (ret < 0) {
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE))
+			kvm_info("STING_GSTAGE map failed pc=0x%lx fault_gpa=0x%lx ret=%d\n",
+				 trap->sepc, fault_addr, ret);
 		return ret;
+	}
+	if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE))
+		kvm_info("STING_GSTAGE map ok pc=0x%lx cause=0x%lx stval=0x%lx htval=0x%lx gpa=0x%lx slot=%d hva=0x%lx pte=0x%lx level=%u mmode=%d hmode=%d\n",
+			 trap->sepc, trap->scause, trap->stval, trap->htval,
+			 fault_addr, memslot ? memslot->id : -1, hva,
+			 pte_val(host_map.pte), host_map.level,
+			 vcpu->arch.mmode.active, vcpu->arch.hmode.active);
 
 	return 1;
 }
@@ -594,6 +610,15 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 {
 	unsigned int irq;
 	int ret;
+
+	if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE) &&
+	    (trap->scause == EXC_INST_GUEST_PAGE_FAULT ||
+	     trap->scause == EXC_LOAD_GUEST_PAGE_FAULT ||
+	     trap->scause == EXC_STORE_GUEST_PAGE_FAULT))
+		kvm_info("STING_TRAP pc=0x%lx cause=0x%lx tval=0x%lx htval=0x%lx htinst=0x%lx mmode=%d hmode=%d\n",
+			 trap->sepc, trap->scause, trap->stval, trap->htval,
+			 trap->htinst, vcpu->arch.mmode.active,
+			 vcpu->arch.hmode.active);
 
 	/* If we got host interrupt then do nothing. */
 	if (trap->scause & CAUSE_IRQ_FLAG) {

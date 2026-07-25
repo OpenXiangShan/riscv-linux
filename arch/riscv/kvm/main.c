@@ -15,6 +15,13 @@
 #include <asm/kvm_nacl.h>
 #include <asm/sbi.h>
 
+#include "sting_config.h"
+
+unsigned int kvm_riscv_sting_log_mask;
+module_param_named(sting_log_mask, kvm_riscv_sting_log_mask, uint, 0644);
+MODULE_PARM_DESC(sting_log_mask,
+		 "STING KVM log mask: bit0=nested, bit1=gstage");
+
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
 {

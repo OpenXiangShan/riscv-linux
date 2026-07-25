@@ -11,6 +11,8 @@
 #include <linux/pgtable.h>
 #include <asm/kvm_gstage.h>
 
+#include "sting_config.h"
+
 #ifdef CONFIG_64BIT
 unsigned long kvm_riscv_gstage_mode __ro_after_init = HGATP_MODE_SV39X4;
 unsigned long kvm_riscv_gstage_pgd_levels __ro_after_init = 3;
@@ -154,10 +156,22 @@ int kvm_riscv_gstage_set_pte(struct kvm_gstage *gstage,
 		ptep = &next_ptep[gstage_pte_index(map->addr, current_level)];
 	}
 
-	if (pte_val(*ptep) != pte_val(map->pte)) {
+	if (pte_val(ptep_get(ptep)) != pte_val(map->pte)) {
+		pte_t old_pte = ptep_get(ptep);
+
 		set_pte(ptep, map->pte);
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE))
+			kvm_info("STING_GSTAGE pte update gpa=0x%llx level=%u old=0x%lx new=0x%lx fence=%d\n",
+				 (unsigned long long)map->addr, current_level,
+				 pte_val(old_pte), pte_val(ptep_get(ptep)),
+				 !!gstage_pte_leaf(ptep));
 		if (gstage_pte_leaf(ptep))
 			gstage_tlb_flush(gstage, current_level, map->addr);
+	} else {
+		if (kvm_riscv_sting_log_enabled(KVM_RISCV_STING_LOG_GSTAGE))
+			kvm_info("STING_GSTAGE pte reuse gpa=0x%llx level=%u pte=0x%lx fence=0\n",
+				 (unsigned long long)map->addr, current_level,
+				 pte_val(ptep_get(ptep)));
 	}
 
 	return 0;
