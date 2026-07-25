@@ -547,10 +547,12 @@ void kvm_riscv_aia_enable(void)
 	csr_write(CSR_HVIPRIO2H, 0x0);
 #endif
 
-	/* Enable per-CPU SGEI interrupt */
-	enable_percpu_irq(hgei_parent_irq,
-			  irq_get_trigger_type(hgei_parent_irq));
-	csr_set(CSR_HIE, BIT(IRQ_S_GEXT));
+	/* aia_hgei_init() does not create an SGEI IRQ without guest files. */
+	if (kvm_riscv_aia_nr_hgei) {
+		enable_percpu_irq(hgei_parent_irq,
+				  irq_get_trigger_type(hgei_parent_irq));
+		csr_set(CSR_HIE, BIT(IRQ_S_GEXT));
+	}
 	/* Enable IRQ filtering for overflow interrupt only if sscofpmf is present */
 	if (__riscv_isa_extension_available(NULL, RISCV_ISA_EXT_SSCOFPMF))
 		csr_set(CSR_HVIEN, BIT(IRQ_PMU_OVF));
@@ -569,9 +571,11 @@ void kvm_riscv_aia_disable(void)
 
 	if (__riscv_isa_extension_available(NULL, RISCV_ISA_EXT_SSCOFPMF))
 		csr_clear(CSR_HVIEN, BIT(IRQ_PMU_OVF));
-	/* Disable per-CPU SGEI interrupt */
-	csr_clear(CSR_HIE, BIT(IRQ_S_GEXT));
-	disable_percpu_irq(hgei_parent_irq);
+	/* Disable the SGEI IRQ only when aia_hgei_init() created one. */
+	if (kvm_riscv_aia_nr_hgei) {
+		csr_clear(CSR_HIE, BIT(IRQ_S_GEXT));
+		disable_percpu_irq(hgei_parent_irq);
+	}
 
 	csr_write(CSR_HVICTL, aia_hvictl_value(false));
 
