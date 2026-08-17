@@ -1,0 +1,153 @@
+/dts-v1/;
+
+/* Single-die, 16-core KMH BOSC SoC. */
+#include "kmh-bosc-soc-multidie.dtsi"
+
+/ {
+    model = "BOSC KMH 1-die 16-core SoC";
+
+    pmem@3c0000000 {
+        compatible = "pmem-region", "nvdimm";
+        reg = <0x3 0xc0000000 0x0 0x20000000>;
+        status = "okay";
+    };
+
+    pmem@3e0000000 {
+        compatible = "pmem-region", "nvdimm";
+        reg = <0x3 0xe0000000 0x0 0x80000000>;
+        status = "okay";
+    };
+
+    reserved-memory {
+        #address-cells = <0x2>;
+        #size-cells = <0x2>;
+        ranges;
+
+        my_reserved_buffer@90000000 {
+            compatible = "my,reserved-mem";
+            reg = <0x0 0x90000000 0x0 0x200000>;
+            status = "okay";
+        };
+
+        region@3c0000000 {
+            reg = <0x3 0xc0000000 0x0 0x20000000>;
+            no-map;
+        };
+
+        region@3e0000000 {
+            reg = <0x3 0xe0000000 0x0 0x80000000>;
+            no-map;
+        };
+    };
+    
+    distance-map {
+        compatible = "numa-distance-map-v1";
+        distance-matrix = <0 0 10>;
+    };
+
+    memory@80000000 {
+        device_type = "memory";
+        numa-node-id = <0>;
+        //reg = <0x0 0x80000000 0x0 0x4000000>;
+        //reg = <0x0 0x80000000 0x0 0x8000000>;
+        //reg = <0x0 0x80000000 0x0 0x10000000>;
+        //reg = <0x0 0x80000000 0x0 0x20000000>;
+        //reg = <0x0 0x80000000 0x0 0x06000000>;
+        //reg = <0x0 0x80000000 0x0 0x05000000>;
+        reg = <0x0 0x80000000 0x2 0x00000000>;
+    };
+};
+
+&{/chosen} {
+    boot-hartid = <0>;
+    stdout-path = "serial0:115200n8";
+    bootargs = "console=hvc0 earlycon=sbi earlycon loglevel=8 drm.debug=0x2 amdgpu.cik=1 amdgpu.si=1 amdgpu.dpm=0 pcie_aspm=off pcie_port_pm=off amdgpu.vm_update_mode=3 root=/dev/sda1 rw task=0x0000000000000000";
+};
+
+&{/cpus} {
+    timebase-frequency = <13000000>;
+};
+
+&uart0 {
+    clock-frequency = <5600000>;
+};
+
+&imsics_m {
+    riscv,hart-indexes = <
+        0 1 2 3 4 5 6 7
+        8 9 10 11 12 13 14 15
+    >;
+};
+
+&imsics_s {
+    riscv,guest-index-bits = <3>;
+    riscv,hart-indexes = <
+        0 1 2 3 4 5 6 7
+        8 9 10 11 12 13 14 15
+    >;
+};
+
+&aplic_m_die0 {
+    phandle = <0x8083>;
+};
+
+&aplic_s_die0 {
+    phandle = <0x8082>;
+};
+
+&cpu0 {
+    status = "okay";
+};
+&cpu1 {
+    status = "okay";
+};
+&cpu2 {
+    status = "okay";
+};
+&cpu3 {
+    status = "okay";
+};
+&cpu4 {
+    status = "okay";
+};
+&cpu5 {
+    status = "okay";
+};
+&cpu6 {
+    status = "okay";
+};
+&cpu7 {
+    status = "okay";
+};
+&cpu8 {
+    status = "okay";
+};
+&cpu9 {
+    status = "okay";
+};
+&cpu10 {
+    status = "okay";
+};
+&cpu11 {
+    status = "okay";
+};
+&cpu12 {
+    status = "okay";
+};
+&cpu13 {
+    status = "okay";
+};
+&cpu14 {
+    status = "okay";
+};
+&cpu15 {
+    status = "okay";
+};
+
+//&mtimer {
+//    interrupts-extended = <&cpu_intc0 0x07>;
+//};
+//
+//&mswi {
+//    interrupts-extended = <&cpu_intc0 0x03>;
+//};

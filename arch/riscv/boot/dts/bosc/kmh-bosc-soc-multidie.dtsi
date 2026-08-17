@@ -1,0 +1,567 @@
+/* Common multidie blocks shared by kmh-bosc-soc DTS files. */
+
+#define KMH_ISA "rv64imafdcbvh_zic64b_zicbom_zicbop_zicboz_ziccamoa_ziccif_zicclsm_ziccrse_zicond_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zimop_za64rs_zacas_zawrs_zfa_zfh_zfhmin_zca_zcb_zcmop_zba_zbb_zbc_zbkb_zbkc_zbkx_zbs_zkn_zknd_zkne_zknh_zks_zksed_zksh_zkt_zvbb_zve32f_zve32x_zve64f_zve64d_zve64x_zvfh_zvfhmin_zvkb_zvkt_sdtrig_shcounterenw_sha_shgatpa_shtvala_shvsatpa_shvstvala_shvstvecd_smaia_smcsrind_smmpm_smnpm_smstateen_ssaia_ssccptr_sscofpmf_sscounterenw_sscsrind_ssdbltrp_ssnpm_sspm_ssstateen_ssstrict_sstc_sstvala_sstvecd_ssu64xl_supm_svade_svinval_svnapot_svpbmt"
+#define KMH_ISA_EXT "i\0m\0a\0f\0d\0c\0b\0v\0h\0zic64b\0zicbom\0zicbop\0zicboz\0ziccamoa\0ziccif\0zicclsm\0ziccrse\0zicond\0zicntr\0zicsr\0zifencei\0zihintntl\0zihintpause\0zihpm\0zimop\0za64rs\0zacas\0zawrs\0zfa\0zfh\0zfhmin\0zca\0zcb\0zcmop\0zba\0zbb\0zbc\0zbkb\0zbkc\0zbkx\0zbs\0zkn\0zknd\0zkne\0zknh\0zks\0zksed\0zksh\0zkt\0zvbb\0zve32f\0zve32x\0zve64f\0zve64d\0zve64x\0zvfh\0zvfhmin\0zvkb\0zvkt\0sdtrig\0shcounterenw\0sha\0shgatpa\0shtvala\0shvsatpa\0shvstvala\0shvstvecd\0smaia\0smcsrind\0smmpm\0smnpm\0smstateen\0ssaia\0ssccptr\0sscofpmf\0sscounterenw\0sscsrind\0ssdbltrp\0ssnpm\0sspm\0ssstateen\0ssstrict\0sstc\0sstvala\0sstvecd\0ssu64xl\0supm\0svade\0svinval\0svnapot\0svpbmt"
+#define KMH_NUMA0 numa-node-id = <0>;
+#define KMH_NUMA1 numa-node-id = <1>;
+#define KMH_NUMA2 numa-node-id = <2>;
+#define KMH_NUMA3 numa-node-id = <3>;
+#define KMH_NO_NUMA
+#define KMH_CPU_BODY(_idx, _cpu_ph, _intc_ph, _status, _numa) \
+    compatible = "riscv"; \
+    device_type = "cpu"; \
+    reg = <_idx>; \
+    status = _status; \
+    _numa \
+    mmu-type = "riscv,sv48"; \
+    riscv,isa-base = "rv64i"; \
+    riscv,isa = KMH_ISA; \
+    riscv,isa-extensions = KMH_ISA_EXT; \
+    phandle = <_cpu_ph>; \
+    cpu_intc##_idx: interrupt-controller { \
+        compatible = "riscv,cpu-intc"; \
+        interrupt-controller; \
+        #interrupt-cells = <0x1>; \
+        phandle = <_intc_ph>; \
+    };
+/ {
+    #address-cells = <0x2>;
+    #size-cells = <0x2>;
+    compatible = "bosc,kmh-bosc-soc";
+    model = "BOSC KMH multi-die SoC";
+
+    cpus {
+        #address-cells = <0x1>;
+        #size-cells = <0x0>;
+        timebase-frequency = <100000000>;
+
+        /* Enabled harts */
+        cpu0: cpu@0 {
+            KMH_CPU_BODY(0, 0x8080, 0x8081, "disabled", KMH_NUMA0)
+        };
+
+        cpu1: cpu@1 {
+            KMH_CPU_BODY(1, 0x807e, 0x807f, "disabled", KMH_NUMA0)
+        };
+
+        cpu2: cpu@2 {
+            KMH_CPU_BODY(2, 0x807c, 0x807d, "disabled", KMH_NUMA0)
+        };
+
+        cpu3: cpu@3 {
+            KMH_CPU_BODY(3, 0x807a, 0x807b, "disabled", KMH_NUMA0)
+        };
+
+        cpu4: cpu@4 {
+            KMH_CPU_BODY(4, 0x8078, 0x8079, "disabled", KMH_NUMA0)
+        };
+
+        cpu5: cpu@5 {
+            KMH_CPU_BODY(5, 0x8076, 0x8077, "disabled", KMH_NUMA0)
+        };
+
+        cpu6: cpu@6 {
+            KMH_CPU_BODY(6, 0x8074, 0x8075, "disabled", KMH_NUMA0)
+        };
+
+        cpu7: cpu@7 {
+            KMH_CPU_BODY(7, 0x8072, 0x8073, "disabled", KMH_NUMA0)
+        };
+
+        cpu8: cpu@8 {
+            KMH_CPU_BODY(8, 0x8070, 0x8071, "disabled", KMH_NUMA0)
+        };
+
+        cpu9: cpu@9 {
+            KMH_CPU_BODY(9, 0x806e, 0x806f, "disabled", KMH_NUMA0)
+        };
+
+        cpu10: cpu@10 {
+            KMH_CPU_BODY(10, 0x806c, 0x806d, "disabled", KMH_NUMA0)
+        };
+
+        cpu11: cpu@11 {
+            KMH_CPU_BODY(11, 0x806a, 0x806b, "disabled", KMH_NUMA0)
+        };
+
+        cpu12: cpu@12 {
+            KMH_CPU_BODY(12, 0x8068, 0x8069, "disabled", KMH_NUMA0)
+        };
+
+        cpu13: cpu@13 {
+            KMH_CPU_BODY(13, 0x8066, 0x8067, "disabled", KMH_NUMA0)
+        };
+
+        cpu14: cpu@14 {
+            KMH_CPU_BODY(14, 0x8064, 0x8065, "disabled", KMH_NUMA0)
+        };
+
+        cpu15: cpu@15 {
+            KMH_CPU_BODY(15, 0x8062, 0x8063, "disabled", KMH_NUMA0)
+        };
+
+        cpu16: cpu@16 {
+            KMH_CPU_BODY(16, 0x8060, 0x8061, "disabled", KMH_NUMA1)
+        };
+
+        cpu17: cpu@17 {
+            KMH_CPU_BODY(17, 0x805e, 0x805f, "disabled", KMH_NUMA1)
+        };
+
+        cpu18: cpu@18 {
+            KMH_CPU_BODY(18, 0x805c, 0x805d, "disabled", KMH_NUMA1)
+        };
+
+        cpu19: cpu@19 {
+            KMH_CPU_BODY(19, 0x805a, 0x805b, "disabled", KMH_NUMA1)
+        };
+
+        cpu20: cpu@20 {
+            KMH_CPU_BODY(20, 0x8058, 0x8059, "disabled", KMH_NUMA1)
+        };
+
+        cpu21: cpu@21 {
+            KMH_CPU_BODY(21, 0x8056, 0x8057, "disabled", KMH_NUMA1)
+        };
+
+        cpu22: cpu@22 {
+            KMH_CPU_BODY(22, 0x8054, 0x8055, "disabled", KMH_NUMA1)
+        };
+
+        cpu23: cpu@23 {
+            KMH_CPU_BODY(23, 0x8052, 0x8053, "disabled", KMH_NUMA1)
+        };
+
+        cpu24: cpu@24 {
+            KMH_CPU_BODY(24, 0x8050, 0x8051, "disabled", KMH_NUMA1)
+        };
+
+        cpu25: cpu@25 {
+            KMH_CPU_BODY(25, 0x804e, 0x804f, "disabled", KMH_NUMA1)
+        };
+
+        cpu26: cpu@26 {
+            KMH_CPU_BODY(26, 0x804c, 0x804d, "disabled", KMH_NUMA1)
+        };
+
+        cpu27: cpu@27 {
+            KMH_CPU_BODY(27, 0x804a, 0x804b, "disabled", KMH_NUMA1)
+        };
+
+        cpu28: cpu@28 {
+            KMH_CPU_BODY(28, 0x8048, 0x8049, "disabled", KMH_NUMA1)
+        };
+
+        cpu29: cpu@29 {
+            KMH_CPU_BODY(29, 0x8046, 0x8047, "disabled", KMH_NUMA1)
+        };
+
+        cpu30: cpu@30 {
+            KMH_CPU_BODY(30, 0x8044, 0x8045, "disabled", KMH_NUMA1)
+        };
+
+        cpu31: cpu@31 {
+            KMH_CPU_BODY(31, 0x8042, 0x8043, "disabled", KMH_NUMA1)
+        };
+
+        cpu32: cpu@32 {
+            KMH_CPU_BODY(32, 0x8040, 0x8041, "disabled", KMH_NUMA2)
+        };
+
+        cpu33: cpu@33 {
+            KMH_CPU_BODY(33, 0x803e, 0x803f, "disabled", KMH_NUMA2)
+        };
+
+        cpu34: cpu@34 {
+            KMH_CPU_BODY(34, 0x803c, 0x803d, "disabled", KMH_NUMA2)
+        };
+
+        cpu35: cpu@35 {
+            KMH_CPU_BODY(35, 0x803a, 0x803b, "disabled", KMH_NUMA2)
+        };
+
+        cpu36: cpu@36 {
+            KMH_CPU_BODY(36, 0x8038, 0x8039, "disabled", KMH_NUMA2)
+        };
+
+        cpu37: cpu@37 {
+            KMH_CPU_BODY(37, 0x8036, 0x8037, "disabled", KMH_NUMA2)
+        };
+
+        cpu38: cpu@38 {
+            KMH_CPU_BODY(38, 0x8034, 0x8035, "disabled", KMH_NUMA2)
+        };
+
+        cpu39: cpu@39 {
+            KMH_CPU_BODY(39, 0x8032, 0x8033, "disabled", KMH_NUMA2)
+        };
+
+        cpu40: cpu@40 {
+            KMH_CPU_BODY(40, 0x8030, 0x8031, "disabled", KMH_NUMA2)
+        };
+
+        cpu41: cpu@41 {
+            KMH_CPU_BODY(41, 0x802e, 0x802f, "disabled", KMH_NUMA2)
+        };
+
+        cpu42: cpu@42 {
+            KMH_CPU_BODY(42, 0x802c, 0x802d, "disabled", KMH_NUMA2)
+        };
+
+        cpu43: cpu@43 {
+            KMH_CPU_BODY(43, 0x802a, 0x802b, "disabled", KMH_NUMA2)
+        };
+
+        cpu44: cpu@44 {
+            KMH_CPU_BODY(44, 0x8028, 0x8029, "disabled", KMH_NUMA2)
+        };
+
+        cpu45: cpu@45 {
+            KMH_CPU_BODY(45, 0x8026, 0x8027, "disabled", KMH_NUMA2)
+        };
+
+        cpu46: cpu@46 {
+            KMH_CPU_BODY(46, 0x8024, 0x8025, "disabled", KMH_NUMA2)
+        };
+
+        cpu47: cpu@47 {
+            KMH_CPU_BODY(47, 0x8022, 0x8023, "disabled", KMH_NUMA2)
+        };
+
+        cpu48: cpu@48 {
+            KMH_CPU_BODY(48, 0x8020, 0x8021, "disabled", KMH_NUMA3)
+        };
+
+        cpu49: cpu@49 {
+            KMH_CPU_BODY(49, 0x801e, 0x801f, "disabled", KMH_NUMA3)
+        };
+
+        cpu50: cpu@50 {
+            KMH_CPU_BODY(50, 0x801c, 0x801d, "disabled", KMH_NUMA3)
+        };
+
+        cpu51: cpu@51 {
+            KMH_CPU_BODY(51, 0x801a, 0x801b, "disabled", KMH_NUMA3)
+        };
+
+        cpu52: cpu@52 {
+            KMH_CPU_BODY(52, 0x8018, 0x8019, "disabled", KMH_NUMA3)
+        };
+
+        cpu53: cpu@53 {
+            KMH_CPU_BODY(53, 0x8016, 0x8017, "disabled", KMH_NUMA3)
+        };
+
+        cpu54: cpu@54 {
+            KMH_CPU_BODY(54, 0x8014, 0x8015, "disabled", KMH_NUMA3)
+        };
+
+        cpu55: cpu@55 {
+            KMH_CPU_BODY(55, 0x8012, 0x8013, "disabled", KMH_NUMA3)
+        };
+
+        cpu56: cpu@56 {
+            KMH_CPU_BODY(56, 0x8010, 0x8011, "disabled", KMH_NUMA3)
+        };
+
+        cpu57: cpu@57 {
+            KMH_CPU_BODY(57, 0x800e, 0x800f, "disabled", KMH_NUMA3)
+        };
+
+        cpu58: cpu@58 {
+            KMH_CPU_BODY(58, 0x800c, 0x800d, "disabled", KMH_NUMA3)
+        };
+
+        cpu59: cpu@59 {
+            KMH_CPU_BODY(59, 0x800a, 0x800b, "disabled", KMH_NUMA3)
+        };
+
+        cpu60: cpu@60 {
+            KMH_CPU_BODY(60, 0x8008, 0x8009, "disabled", KMH_NUMA3)
+        };
+
+        cpu61: cpu@61 {
+            KMH_CPU_BODY(61, 0x8006, 0x8007, "disabled", KMH_NUMA3)
+        };
+
+        cpu62: cpu@62 {
+            KMH_CPU_BODY(62, 0x8004, 0x8005, "disabled", KMH_NUMA3)
+        };
+
+        cpu63: cpu@63 {
+            KMH_CPU_BODY(63, 0x8002, 0x8003, "disabled", KMH_NUMA3)
+        };
+
+    };
+
+    soc: soc {
+        compatible = "bosc,kmh-bosc-soc", "simple-bus";
+        ranges;
+        #address-cells = <0x2>;
+        #size-cells = <0x2>;
+
+        /* Global MSI and timer infrastructure */
+        imsics_m: imsics-m {
+            compatible = "riscv,imsics";
+            interrupt-controller;
+            msi-controller;
+            #interrupt-cells = <0x0>;
+            riscv,num-ids = <0xff>;
+            riscv,group-index-bits = <0x2>;
+            riscv,group-index-shift = <0x2c>;
+            riscv,hart-index-bits = <0x4>;
+            reg = <0x0 0x1c000000 0x0 0x10000>;
+            interrupts-extended =
+                <&cpu_intc0 0x0b>, <&cpu_intc1 0x0b>, <&cpu_intc2 0x0b>, <&cpu_intc3 0x0b>,
+                <&cpu_intc4 0x0b>, <&cpu_intc5 0x0b>, <&cpu_intc6 0x0b>, <&cpu_intc7 0x0b>,
+                <&cpu_intc8 0x0b>, <&cpu_intc9 0x0b>, <&cpu_intc10 0x0b>, <&cpu_intc11 0x0b>,
+                <&cpu_intc12 0x0b>, <&cpu_intc13 0x0b>, <&cpu_intc14 0x0b>, <&cpu_intc15 0x0b>;
+            phandle = <0x8000>;
+        };
+
+        imsics_s: imsics-s {
+            compatible = "riscv,imsics";
+            interrupt-controller;
+            msi-controller;
+            #interrupt-cells = <0x0>;
+            riscv,num-ids = <0xff>;
+            riscv,guest-index-bits = <0x4>;
+            riscv,group-index-bits = <0x2>;
+            riscv,group-index-shift = <0x2c>;
+            riscv,hart-index-bits = <0x4>;
+            reg = <0x0 0x1d000000 0x0 0x80000>;
+            interrupts-extended = 
+                <&cpu_intc0 0x09>, <&cpu_intc1 0x09>, <&cpu_intc2 0x09>, <&cpu_intc3 0x09>,
+                <&cpu_intc4 0x09>, <&cpu_intc5 0x09>, <&cpu_intc6 0x09>, <&cpu_intc7 0x09>,
+                <&cpu_intc8 0x09>, <&cpu_intc9 0x09>, <&cpu_intc10 0x09>, <&cpu_intc11 0x09>,
+                <&cpu_intc12 0x09>, <&cpu_intc13 0x09>, <&cpu_intc14 0x09>, <&cpu_intc15 0x09>;
+            phandle = <0x8001>;
+        };
+
+        mtimer: mtimer@19004000 {
+            compatible = "riscv,aclint-mtimer";
+            reg = <0x0 0x1900bff8 0x0 0x8 0x0 0x19004000 0x0 0x7ff8>;
+            interrupts-extended =
+                <&cpu_intc0 0x07>, <&cpu_intc1 0x07>, <&cpu_intc2 0x07>, <&cpu_intc3 0x07>,
+                <&cpu_intc4 0x07>, <&cpu_intc5 0x07>, <&cpu_intc6 0x07>, <&cpu_intc7 0x07>,
+                <&cpu_intc8 0x07>, <&cpu_intc9 0x07>, <&cpu_intc10 0x07>, <&cpu_intc11 0x07>,
+                <&cpu_intc12 0x07>, <&cpu_intc13 0x07>, <&cpu_intc14 0x07>, <&cpu_intc15 0x07>;
+        };
+
+        mswi: mswi@19000000 {
+            compatible = "riscv,aclint-mswi";
+            interrupt-controller;
+            #interrupt-cells = <0x0>;
+            reg = <0x0 0x19000000 0x0 0x4000>;
+            interrupts-extended =
+                <&cpu_intc0 0x03>, <&cpu_intc1 0x03>, <&cpu_intc2 0x03>, <&cpu_intc3 0x03>,
+                <&cpu_intc4 0x03>, <&cpu_intc5 0x03>, <&cpu_intc6 0x03>, <&cpu_intc7 0x03>,
+                <&cpu_intc8 0x03>, <&cpu_intc9 0x03>, <&cpu_intc10 0x03>, <&cpu_intc11 0x03>,
+                <&cpu_intc12 0x03>, <&cpu_intc13 0x03>, <&cpu_intc14 0x03>, <&cpu_intc15 0x03>;
+        };
+
+        aplic_m_die0: aplic-m@1e020000 {
+            compatible = "riscv,aplic";
+            interrupt-controller;
+            #address-cells = <0x0>;
+            #interrupt-cells = <0x2>;
+            riscv,num-sources = <0x60>;
+            riscv,children = <&aplic_s_die0>;
+            riscv,delegate = <&aplic_s_die0 0x1 0x60>;
+            riscv,delegation = <&aplic_s_die0 0x1 0x60>;
+            reg = <0x0 0x1e020000 0x0 0x4000>;
+            msi-parent = <&imsics_m>;
+            phandle = <0x8082>;
+        };
+
+        aplic_s_die0: aplic-s@1e024000 {
+            compatible = "riscv,aplic";
+            interrupt-controller;
+            #address-cells = <0x0>;
+            #interrupt-cells = <0x2>;
+            riscv,num-sources = <0x60>;
+            reg = <0x0 0x1e024000 0x0 0x4000>;
+            msi-parent = <&imsics_s>;
+            phandle = <0x8083>;
+        };
+
+        uart0: serial@4000000 {
+			interrupts = <0x0a 0x04>;
+			interrupt-parent = <0x8082>;
+            clock-frequency = <11000000>;
+            current-speed = <115200>;
+			reg-shift = <0x02>;
+			reg = <0x00 0x4000000 0x00 0x10000>;
+			compatible = "ns16550a";
+		};
+        dma-controller@b000000 {
+			status = "okay";
+			interrupts = <0x28 0x04>;
+			interrupt-parent = <0x8082>;
+			reg = <0x00 0xb000000 0x00 0x1000>;
+			snps,data-width = <0x08>;
+			snps,dma-masters = <0x01>;
+			dma-channels = <0x02>;
+			#dma-cells = <0x01>;
+			dma-controller;
+			compatible = "snps,axi-dma-1.01a";
+		};
+/*
+        iommu0: iommu@4f80200000 {
+            compatible = "riscv,iommu";
+            status = "okay";
+            #iommu-cells = <0x1>;
+            reg = <0x4f 0x80200000 0x0 0x100000>;
+            interrupt-parent = <&aplic_s_die0>;
+            interrupts = <0x24 0x1 0x25 0x1 0x26 0x1 0x27 0x1>;
+            msi-parent = <&imsics_s>;
+        };*/
+
+        /* PCIe root complexes */
+        pci0: pci@4f00000000 {
+            compatible = "snps,dw-pcie";
+            device_type = "pci";
+            status = "disabled";
+            linux,pci-domain = <0x00>;
+            bus-range = <0x00 0xff>;
+            num-lanes = <0x01>;
+            max-link-speed = <2>;
+            //snps,atu-unroll = <0>;
+            //dma-coherent;
+            #address-cells = <0x3>;
+            #size-cells = <0x2>;
+            #interrupt-cells = <0x1>;
+            interrupt-parent = <&aplic_s_die0>;
+            msi-parent = <&imsics_s>;
+            interrupt-names = "msi", "hp";
+            interrupts = <0x0d 0x04 0x12 0x04>;
+            interrupt-map-mask = <0x1800 0x00 0x00 0x07>;
+            interrupt-map = <
+                0x00 0x00 0x00 0x01 &aplic_s_die0 0x0e 0x04
+                0x00 0x00 0x00 0x02 &aplic_s_die0 0x0f 0x04
+                0x00 0x00 0x00 0x03 &aplic_s_die0 0x10 0x04
+                0x00 0x00 0x00 0x04 &aplic_s_die0 0x11 0x04
+                0x800 0x00 0x00 0x01 &aplic_s_die0 0x0f 0x04
+                0x800 0x00 0x00 0x02 &aplic_s_die0 0x10 0x04
+                0x800 0x00 0x00 0x03 &aplic_s_die0 0x11 0x04
+                0x800 0x00 0x00 0x04 &aplic_s_die0 0x0e 0x04
+                0x1000 0x00 0x00 0x01 &aplic_s_die0 0x10 0x04
+                0x1000 0x00 0x00 0x02 &aplic_s_die0 0x11 0x04
+                0x1000 0x00 0x00 0x03 &aplic_s_die0 0x0e 0x04
+                0x1000 0x00 0x00 0x04 &aplic_s_die0 0x0f 0x04
+                0x1800 0x00 0x00 0x01 &aplic_s_die0 0x11 0x04
+                0x1800 0x00 0x00 0x02 &aplic_s_die0 0x0e 0x04
+                0x1800 0x00 0x00 0x03 &aplic_s_die0 0x0f 0x04
+                0x1800 0x00 0x00 0x04 &aplic_s_die0 0x10 0x04
+            >;
+            reg-names = "dbi", "config";
+            
+            reg = <0x04f 0x00000000 0x0 0x00400000 
+                   0x048 0x00000000 0x0 0x10000000>;
+            ranges = <
+                0x02000000 0x00 0x50000000 0x480 0x00000000 0x00 0x20000000
+                0x43000000 0x01 0x00000000 0x480 0x20000000 0x00 0x20000000
+            >;
+            dma-ranges = <0x02000000 0x0 0x80000000 0x0 0x80000000 0x0 0x80000000>;
+        };
+
+        pci@4f00800000 {
+            compatible = "snps,dw-pcie";
+            device_type = "pci";
+            status = "disabled";
+            linux,pci-domain = <0x01>;
+            bus-range = <0x00 0xff>;
+            num-lanes = <0x01>;
+            #address-cells = <0x3>;
+            #size-cells = <0x2>;
+            #interrupt-cells = <0x1>;
+            interrupt-parent = <&aplic_s_die0>;
+            msi-parent = <&imsics_s>;
+            interrupt-names = "msi", "hp";
+            interrupts = <0x13 0x04 0x18 0x04>;
+            interrupt-map-mask = <0x1800 0x00 0x00 0x07>;
+            interrupt-map = <
+                0x00 0x00 0x00 0x01 &aplic_s_die0 0x14 0x04
+                0x00 0x00 0x00 0x02 &aplic_s_die0 0x15 0x04
+                0x00 0x00 0x00 0x03 &aplic_s_die0 0x16 0x04
+                0x00 0x00 0x00 0x04 &aplic_s_die0 0x17 0x04
+                0x800 0x00 0x00 0x01 &aplic_s_die0 0x15 0x04
+                0x800 0x00 0x00 0x02 &aplic_s_die0 0x16 0x04
+                0x800 0x00 0x00 0x03 &aplic_s_die0 0x17 0x04
+                0x800 0x00 0x00 0x04 &aplic_s_die0 0x14 0x04
+                0x1000 0x00 0x00 0x01 &aplic_s_die0 0x16 0x04
+                0x1000 0x00 0x00 0x02 &aplic_s_die0 0x17 0x04
+                0x1000 0x00 0x00 0x03 &aplic_s_die0 0x14 0x04
+                0x1000 0x00 0x00 0x04 &aplic_s_die0 0x15 0x04
+                0x1800 0x00 0x00 0x01 &aplic_s_die0 0x17 0x04
+                0x1800 0x00 0x00 0x02 &aplic_s_die0 0x14 0x04
+                0x1800 0x00 0x00 0x03 &aplic_s_die0 0x15 0x04
+                0x1800 0x00 0x00 0x04 &aplic_s_die0 0x16 0x04
+            >;
+            reg-names = "dbi", "config";
+            reg = <0x4f 0x800000 0x00 0x400000 0x4f 0xc00000 0x00 0x10000>;
+            ranges = <
+                0x2000000 0x00 0x00 0x49 0x00 0x01 0x00
+                0x3000000 0x01 0x00 0x4e0 0x00 0x10 0x00
+            >;
+        };
+
+        pci@4f01000000 {
+            compatible = "snps,dw-pcie";
+            device_type = "pci";
+            status = "disabled";
+            linux,pci-domain = <0x02>;
+            bus-range = <0x00 0xff>;
+            num-lanes = <0x01>;
+            #address-cells = <0x3>;
+            #size-cells = <0x2>;
+            #interrupt-cells = <0x1>;
+            interrupt-parent = <&aplic_s_die0>;
+            msi-parent = <&imsics_s>;
+            interrupt-names = "msi", "hp";
+            interrupts = <0x19 0x04 0x1e 0x04>;
+            interrupt-map-mask = <0x1800 0x00 0x00 0x07>;
+            interrupt-map = <
+                0x00 0x00 0x00 0x01 &aplic_s_die0 0x1a 0x04
+                0x00 0x00 0x00 0x02 &aplic_s_die0 0x1b 0x04
+                0x00 0x00 0x00 0x03 &aplic_s_die0 0x1c 0x04
+                0x00 0x00 0x00 0x04 &aplic_s_die0 0x1d 0x04
+                0x800 0x00 0x00 0x01 &aplic_s_die0 0x1b 0x04
+                0x800 0x00 0x00 0x02 &aplic_s_die0 0x1c 0x04
+                0x800 0x00 0x00 0x03 &aplic_s_die0 0x1d 0x04
+                0x800 0x00 0x00 0x04 &aplic_s_die0 0x1a 0x04
+                0x1000 0x00 0x00 0x01 &aplic_s_die0 0x1c 0x04
+                0x1000 0x00 0x00 0x02 &aplic_s_die0 0x1d 0x04
+                0x1000 0x00 0x00 0x03 &aplic_s_die0 0x1a 0x04
+                0x1000 0x00 0x00 0x04 &aplic_s_die0 0x1b 0x04
+                0x1800 0x00 0x00 0x01 &aplic_s_die0 0x1d 0x04
+                0x1800 0x00 0x00 0x02 &aplic_s_die0 0x1a 0x04
+                0x1800 0x00 0x00 0x03 &aplic_s_die0 0x1b 0x04
+                0x1800 0x00 0x00 0x04 &aplic_s_die0 0x1c 0x04
+            >;
+            reg-names = "dbi", "config";
+            reg = <0x4f 0x1000000 0x00 0x400000 0x4f 0x1400000 0x00 0x10000>;
+            ranges = <
+                0x2000000 0x00 0x00 0x4a 0x00 0x01 0x00
+                0x3000000 0x01 0x00 0x4f0 0x00 0x10 0x00
+            >;
+        };
+
+    };
+
+
+    aliases {
+        serial0 = &uart0;
+    };
+
+
+    chosen {
+        //stdout-path = "/soc/serial@4000000";
+        bootargs = "console=hvc0 earlycon=sbi loglevel=8 drm.debug=0x2 amdgpu.cik=1 amdgpu.si=1 amdgpu.dpm=0 pcie_aspm=off pcie_port_pm=off amdgpu.vm_update_mode=3 root=/dev/sda rootwait rw";
+        opensbi-config {
+            compatible = "opensbi,config";
+            cold-boot-harts = <&cpu0>;
+        };
+    };
+
+};

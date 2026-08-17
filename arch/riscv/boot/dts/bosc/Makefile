@@ -11,6 +11,8 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	nemu-platform.dtb \
 	nemu-platform-initramfs.dtb \
 	emu.dtb \
+	kmh-bosc-soc-1die16c.dtb \
+	kmh-bosc-soc-1die1c.dtb \
 	kmh-v2-1core.dtb \
 	kmh-v2-2core.dtb \
 	kmh-v2-2core_h64.dtb \
