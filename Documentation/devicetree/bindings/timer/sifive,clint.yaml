@@ -29,6 +29,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - bosc,kmh-v2-clint       # BOSC KMH-V2
               - canaan,k210-clint       # Canaan Kendryte K210
               - eswin,eic7700-clint     # ESWIN EIC7700
               - sifive,fu540-c000-clint # SiFive FU540
