@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/riscv/bosc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BOSC Kunminghu RISC-V platforms
+
+maintainers:
+  - Ran Wang <wangran@bosc.ac.cn>
+  - Yaxing Guo <guoyaxing@bosc.ac.cn>
+
+description:
+  BOSC Kunminghu RISC-V platforms.
+
+properties:
+  $nodename:
+    const: '/'
+
+  compatible:
+    items:
+      - const: bosc,kmh-v2-dev
+      - const: bosc,kmh-v2-soc
+
+required:
+  - compatible
+
+additionalProperties: true
+
+...

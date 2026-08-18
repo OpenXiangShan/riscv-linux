@@ -5,7 +5,7 @@
 #include "kmh-v2-synps-pcie.dtsi"
 
 / {
-	compatible = "bosc,kmh-v2-dev";
+	compatible = "bosc,kmh-v2-dev", "bosc,kmh-v2-soc";
 	#address-cells = <2>;
 	#size-cells = <2>;
 
@@ -592,7 +592,7 @@
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
-		compatible = "bosc,kmh-v2-soc", "simple-bus";
+		compatible = "simple-bus";
 		ranges;
 
 		clint: timer@38000000 {
