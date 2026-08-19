@@ -3,9 +3,6 @@
 # kunminghu-v2 has the H externsion, kmh-v1 don't have
 
 dtb-$(CONFIG_SOC_XIANGSHAN) += \
-	nemu-platform.dtb \
-	nemu-platform-initramfs.dtb \
-	emu.dtb \
 	kmh-bosc-soc-1die16c.dtb \
 	kmh-bosc-soc-1die1c.dtb \
 	kmh-v2-1core.dtb \
@@ -20,6 +17,5 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v2-4core-uartlite.dtb \
 	kmh-v2-8core-uartlite.dtb \
 	kmh-v2-16core-uartlite.dtb \
-	kmh-v2-nemu.dtb \
 
 obj-$(CONFIG_BUILTIN_DTB) += $(addsuffix .o, $(dtb-y))
