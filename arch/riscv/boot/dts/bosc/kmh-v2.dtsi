@@ -14,12 +14,6 @@
 		#size-cells = <2>;
 		ranges;
 
-		my_reserved:my_reserved_buffer@90000000 {
-			compatible = "my,reserved-mem";
-			reg = <0x0 0x90000000 0x0 0x200000>;
-			status = "okay";
-		};
-
 		/* 8KB for EINJ workspace */
 		einj_workspace: einj@87000000 {
 			reg = <0x0 0x87000000 0x0 0x2000>;
@@ -38,6 +32,10 @@
 			no-map;
 		};
 
+		region@90000000 {
+			reg = <0x0 0x90000000 0x0 0x200000>;  // 2M
+			no-map;
+		};
 		/*
 		* NOTE: This region's 'reg' must exactly match the 'reg' in nvdimm_pmem node.
 		*       Mismatch will cause pmem driver failure or memory conflict.
@@ -50,17 +48,6 @@
 		    reg = <0x3 0xe0000000 0x0 0x80000000>;  // 2GB
 		    no-map;
 		};
-	};
-
-	my-debug-print {
-		compatible = "my,debug-print";
-		memory-region = <&my_reserved>;
-		status = "disabled";
-	};
-	my-debug-trigger {
-		compatible = "my,debug-trigger";
-		memory-region = <&my_reserved>;
-		status = "disabled";
 	};
 
 	nvdimm0: pmem@3c0000000 {
