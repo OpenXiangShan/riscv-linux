@@ -34,7 +34,6 @@
 
 		region@90000000 {
 			reg = <0x0 0x90000000 0x0 0x200000>;  // 2M
-			no-map;
 		};
 		/*
 		* NOTE: This region's 'reg' must exactly match the 'reg' in nvdimm_pmem node.
