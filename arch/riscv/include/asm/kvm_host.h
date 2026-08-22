@@ -95,6 +95,9 @@ struct kvm_arch {
 	/* G-stage vmid */
 	struct kvm_vmid vmid;
 
+	/* Last VCPU that ran on each physical CPU */
+	int __percpu *last_vcpu_ran;
+
 	/* G-stage page table */
 	pgd_t *pgd;
 	phys_addr_t pgd_phys;

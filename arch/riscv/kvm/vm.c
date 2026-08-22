@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
 #include <linux/uaccess.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm_irqfd.h>
@@ -32,7 +33,9 @@ const struct kvm_stats_header kvm_vm_stats_header = {
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	int *last_ran;
 	int r;
+	int cpu;
 
 	r = kvm_riscv_mmu_alloc_pgd(kvm);
 	if (r)
@@ -42,6 +45,17 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (r) {
 		kvm_riscv_mmu_free_pgd(kvm);
 		return r;
+	}
+
+	kvm->arch.last_vcpu_ran = alloc_percpu(int);
+	if (!kvm->arch.last_vcpu_ran) {
+		kvm_riscv_mmu_free_pgd(kvm);
+		return -ENOMEM;
+	}
+
+	for_each_possible_cpu(cpu) {
+		last_ran = per_cpu_ptr(kvm->arch.last_vcpu_ran, cpu);
+		*last_ran = -1;
 	}
 
 	kvm_riscv_aia_init_vm(kvm);
@@ -56,6 +70,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_destroy_vcpus(kvm);
 
 	kvm_riscv_aia_destroy_vm(kvm);
+
+	free_percpu(kvm->arch.last_vcpu_ran);
 }
 
 bool kvm_arch_has_irq_bypass(void)

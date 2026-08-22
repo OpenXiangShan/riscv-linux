@@ -11,10 +11,12 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
 #include <linux/smp.h>
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_nacl.h>
 #include <asm/kvm_tlb.h>
 #include <asm/kvm_vmid.h>
 
@@ -125,11 +127,18 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 
 void kvm_riscv_gstage_vmid_sanitize(struct kvm_vcpu *vcpu)
 {
+	bool vcpu_migrated;
+	bool vcpu_switched;
 	unsigned long vmid;
+	int *last_ran;
 
-	if (!kvm_riscv_gstage_vmid_bits() ||
-	    vcpu->arch.last_exit_cpu == vcpu->cpu)
+	last_ran = this_cpu_ptr(vcpu->kvm->arch.last_vcpu_ran);
+	vcpu_migrated = (vcpu->arch.last_exit_cpu != vcpu->cpu);
+	vcpu_switched = (*last_ran != vcpu->vcpu_idx);
+	if (!vcpu_migrated && !vcpu_switched)
 		return;
+
+	vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid);
 
 	/*
 	 * On RISC-V platforms with hardware VMID support, we share same
@@ -141,7 +150,21 @@ void kvm_riscv_gstage_vmid_sanitize(struct kvm_vcpu *vcpu)
 	 * To cleanup stale TLB entries, we simply flush all G-stage TLB
 	 * entries by VMID whenever underlying Host CPU changes for a VCPU.
 	 */
+	if (vcpu_migrated && kvm_riscv_gstage_vmid_bits())
+		kvm_riscv_local_hfence_gvma_vmid_all(vmid);
 
-	vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid);
-	kvm_riscv_local_hfence_gvma_vmid_all(vmid);
+	/*
+	 * Guest-local sfence.vma only invalidates VS-stage translations on
+	 * the Host CPU currently backing the VCPU. If a VCPU migrates, or
+	 * if this Host CPU switches between VCPUs of the same VM, stale
+	 * VS-stage entries can be left behind on a Host CPU that missed a
+	 * guest-local flush. Flush the current CPU's VS-stage context before
+	 * entering the guest.
+	 */
+	if (kvm_riscv_nacl_available())
+		nacl_hfence_vvma_all(nacl_shmem(), vmid);
+	else
+		kvm_riscv_local_hfence_vvma_all(vmid);
+
+	*last_ran = vcpu->vcpu_idx;
 }
