@@ -169,7 +169,17 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 	 address in particular) can crash your system - you have been warned.
 	 See Documentation/admin-guide/kernel-parameters.rst for details.
 
-	 If unsure, say 'N'.
+	  If unsure, say 'N'.
+
+config VIRTIO_GENIRQ
+	tristate "Virtio generic IRQ/MSI stress test driver"
+	depends on VIRTIO
+	depends on DEBUG_FS
+	depends on RISCV && RISCV_IMSIC
+	help
+	  Debugfs-only driver for the local virtio_genirq device. It allocates
+	  IMSIC-backed platform MSI vectors and asks the device to emit patterned
+	  MSI writes for interrupt stress testing.
 
 config VIRTIO_DMA_SHARED_BUFFER
 	tristate

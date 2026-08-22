@@ -110,6 +110,11 @@ static int __init riscv_kvm_init(void)
 	if (rc && rc != -ENODEV)
 		return rc;
 #endif
+#ifdef CONFIG_RISCV_VIRTIO_GENIRQ_KVM
+	rc = kvm_riscv_genirq_init();
+	if (rc && rc != -ENODEV)
+		return rc;
+#endif
 	kvm_riscv_gstage_mode_detect();
 	switch (kvm_riscv_gstage_mode) {
 	case HGATP_MODE_SV32X4:

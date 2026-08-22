@@ -70,6 +70,8 @@
 #define VIRTIO_ID_GPIO			41 /* virtio gpio */
 #define VIRTIO_ID_SPI			45 /* virtio spi */
 
+#define VIRTIO_ID_GENIRQ		0x1000 /* local virtio generic IRQ tester */
+
 /*
  * Virtio Transitional IDs
  */

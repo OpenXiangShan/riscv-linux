@@ -827,6 +827,10 @@ config RISCV_DEBUG_PRINT_KVM
 	bool
 	default y if RISCV_DEBUG_PRINT_HOST && KVM
 
+config RISCV_VIRTIO_GENIRQ_KVM
+	bool
+	default y if KVM && RISCV_IMSIC
+
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
 	depends on MMU

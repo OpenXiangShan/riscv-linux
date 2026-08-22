@@ -15,6 +15,7 @@ kvm-y += aia_aplic.o
 kvm-y += aia_device.o
 kvm-y += aia_imsic.o
 kvm-y += gstage.o
+kvm-$(CONFIG_RISCV_VIRTIO_GENIRQ_KVM) += genirq.o
 kvm-y += main.o
 kvm-y += mmu.o
 kvm-y += nacl.o

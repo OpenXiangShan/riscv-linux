@@ -28,6 +28,9 @@
 #ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
 #include <asm/kvm_debug.h>
 #endif
+#ifdef CONFIG_RISCV_VIRTIO_GENIRQ_KVM
+#include <asm/kvm_genirq.h>
+#endif
 
 #define KVM_MAX_VCPUS			1024
 
@@ -113,6 +116,9 @@ struct kvm_arch {
 
 #ifdef CONFIG_RISCV_DEBUG_PRINT_KVM
 	struct kvm_debug_print debug_print;
+#endif
+#ifdef CONFIG_RISCV_VIRTIO_GENIRQ_KVM
+	struct kvm_genirq genirq;
 #endif
 };
 

@@ -741,6 +741,46 @@ static u64 kvm_riscv_aia_msi_addr_mask(struct kvm_aia *aia)
 	       (BIT(aia->nr_hart_bits + aia->nr_guest_bits) - 1);
 }
 
+int kvm_riscv_aia_imsic_translate_vsfile(struct kvm *kvm, gpa_t gpa,
+						 phys_addr_t *hpa)
+{
+	struct kvm_vcpu *vcpu;
+	unsigned long i, flags;
+
+	if (!kvm || !hpa)
+		return -EINVAL;
+
+	if (!kvm_riscv_aia_initialized(kvm) || !irqchip_in_kernel(kvm))
+		return -ENODEV;
+
+	if (kvm->arch.aia.mode != KVM_DEV_RISCV_AIA_MODE_HWACCEL)
+		return -EOPNOTSUPP;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct kvm_vcpu_aia *vaia = &vcpu->arch.aia_context;
+		struct imsic *imsic = vaia->imsic_state;
+		gpa_t base = vaia->imsic_addr;
+		gpa_t off;
+		int ret = -EAGAIN;
+
+		if (!imsic || base == KVM_RISCV_AIA_UNDEF_ADDR)
+			continue;
+		if (gpa < base || gpa >= base + IMSIC_MMIO_PAGE_SZ)
+			continue;
+
+		off = gpa - base;
+		read_lock_irqsave(&imsic->vsfile_lock, flags);
+		if (imsic->vsfile_cpu >= 0 && imsic->vsfile_pa) {
+			*hpa = imsic->vsfile_pa + off;
+			ret = 0;
+		}
+		read_unlock_irqrestore(&imsic->vsfile_lock, flags);
+		return ret;
+	}
+
+	return -ENOENT;
+}
+
 void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
